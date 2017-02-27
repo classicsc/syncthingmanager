@@ -161,6 +161,50 @@ class SyncthingManager(Syncthing):
             del config['devices'][info['index']]
             self.system.set_config(config)
 
+    def edit_device(self, devicestr, prop, value):
+        """Changes properties of a device's configuration.
+        Args:
+            devicestr (str): The device ID or name.
+            prop (str): the property as in the REST config documentaion
+            value: the new value of the property. Needs to be in a 
+                serializable format accepted by the API.
+        Returns:
+            None
+        Raises: ``SyncthingManagerError``: when the given device is not configured."""
+        config = self.system.config()
+        info = self.device_info(devicestr)
+        if info['index'] == None:
+            raise SyncthingManagerError("Device not configured: " + devicestr)
+        else:
+            config['devices'][info['index']][prop] = value
+            self.system.set_config(config)
+
+    def device_change_name(self, devicestr, name):
+        """Set or change the name of a configured device.
+        Args:
+            devicestr (str): the device ID or current name.
+            name (str): the new device name."""
+        self.edit_device(devicestr, 'name', name)
+
+    def device_add_address(self, devicestr, address):
+        """Add an address to the device's list of addresses.
+        Args:
+            devicestr(str): the device ID or name.
+            address(str): a tcp://address to add.
+        """
+        info = self.device_info(devicestr)
+        base_addresses = self.system.config()['devices'][info['index']]['addresses']
+        self.edit_device(devicestr, addresses, base_addresses.append(address))
+
+    def device_remove_address(self, devicestr, address):
+        """The inverse of device_add_address."""
+        info = self.device_info(devicestr)
+        base_addresses = self.system.config()['devices'][info['index']]['addresses']
+        try:
+            self.edit_device(devicestr, 'addresses', base_addresses.remove('address'))
+        except ValueError:
+            pass
+
     def add_folder(self, path, folderid, label='', foldertype='readwrite', 
             rescan=60):
         """Adds a folder to the configuration and sets it.
@@ -359,6 +403,21 @@ def arguments():
             help="remove a device")
     remove_device_parser.add_argument('device', metavar='DEVICE', help="the name or ID to be removed")
 
+    edit_device_parser = device_subparsers.add_subparsers(dest='deviceparser_name',
+            help="edit device properties")
+    edit_device_parser.add_argument('device', metavar='DEVICE', help='the device name or ID to edit')
+    edit_device_parser.add_argument('-n', '--name', metavar='NAME', help='set or change the device name')
+    edit_device_parser.add_argument('-a', '--add-address', metavar='ADDRESS',
+            help='add ADDRESS to the list of hosts')
+    edit_device_parser.add_argument('-r', '--remove-address', metavar='ADDRESS',
+            help='remove ADDRESS from the list of hosts')
+    edit_device_parser.add_argument('-c', '--compression', metavar='SETTING',
+            help='the level of compression to use (always, metadata, or never)')
+    edit_device_parser.add_argument('-i', '--introducer', action='store_true',
+            help='set the device as an introducer')
+    edit_device_parser.add_argument('-io', '--introducer-off', action='store_true', 
+            help='toggle the introducer setting off')
+
     folder_parser = base_subparsers.add_parser('folder', 
             help="work with folders")
     folder_subparsers = folder_parser.add_subparsers(dest='folderparser_name',
@@ -454,6 +513,17 @@ def main():
                 st.remove_device(args.device)
             elif args.deviceparser_name == 'list':
                 st._device_list()
+            elif args.deviceparser_name == 'edit':
+                if args.name:
+                    st.device_change_name(args.device, args.name)
+                if args.introducer:
+                    st.edit_device(args.device, 'introducer', True)
+                if args.introducer_off:
+                    st.edit_device(args.device, 'introducer', False)
+                if args.add_address:
+                    st.device_add_address(args.device, args.add_address)
+                if args.remove_address:
+                    st.device_remove_address(args.device, args.address)
         elif args.subparser_name == 'folder':
             if args.folderparser_name == 'add':
                 st.add_folder(args.path, args.folderID, args.label, 

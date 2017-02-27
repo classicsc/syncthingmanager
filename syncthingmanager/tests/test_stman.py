@@ -36,6 +36,29 @@ def test_remove_device(s):
     b = filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices'])
     assert not next(b, False)
 
+def test_edit_device(s):
+    cfg = s.system.config()
+    a = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices']))
+    s.edit_device('SyncthingManagerTestDevice1', 'introducer', True)
+    s.edit_device('SyncthingManagerTestDevice1', 'compression', 'always')
+    address = ['tcp://127.0.0.2:8384']
+    s.edit_device('SyncthingManagerTestDevice1', 'addresses', address)
+    cfg = s.system.config()
+    b = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices']))
+    assert b['introducer']
+    assert a['compression'] != 'always'
+    assert b['compression'] == 'always'
+    assert b['addresses'] == address
+
+def test_device_change_name(s):
+    cfg = s.system.config()
+    a = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices']))
+    s.device_change_name('SyncthingManagerTestDevice1', 'SyncthingManagerTestDevice2')
+    cfg = s.system.config()
+    b = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice2', cfg['devices']))
+    assert a['name'] == 'SyncthingManagerTestDevice1'
+    assert b['name'] == 'SyncthingManagerTestDevice2'
+
 def test_add_folder(s, temp_folder):
     p = temp_folder
     s.add_folder(str(p), 'stmantest2', 'SyncthingManagerTestFolder2', 'readonly', 40)
