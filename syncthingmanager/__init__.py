@@ -238,7 +238,8 @@ class SyncthingManager(Syncthing):
                         entered: " + path)
             folder = dict({'id': folderid, 'label': label, 'path': str(path),
                 'type': foldertype, 'rescanIntervalS': rescan, 'fsync': True, 
-                'autoNormalize': True, 'maxConflicts': 10, 'pullerSleepS': 0})
+                'autoNormalize': True, 'maxConflicts': 10, 'pullerSleepS': 0,
+                'minDiskFreePct': 1})
             config['folders'].append(folder)
             self.system.set_config(config)
 
@@ -403,7 +404,7 @@ def arguments():
             help="remove a device")
     remove_device_parser.add_argument('device', metavar='DEVICE', help="the name or ID to be removed")
 
-    edit_device_parser = device_subparsers.add_subparsers(dest='deviceparser_name',
+    edit_device_parser = device_subparsers.add_parser('edit',
             help="edit device properties")
     edit_device_parser.add_argument('device', metavar='DEVICE', help='the device name or ID to edit')
     edit_device_parser.add_argument('-n', '--name', metavar='NAME', help='set or change the device name')
