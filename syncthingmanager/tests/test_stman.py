@@ -100,3 +100,38 @@ def test_share_folder(s):
     b = folder1_info(s)
     assert len(next(a)['devices']) == 1
     assert len(next(b)['devices']) == 2
+
+def test_folder_edit(s):
+    a = next(folder1_info(s))
+    s.folder_edit('stmantest1', 'label', 'SyncthingManagerTestFolder2')
+    b = next(folder1_info(s))
+    assert a['label'] == 'SyncthingManagerTestFolder1'
+    assert b['label'] == 'SyncthingManagerTestFolder2'
+
+def test_folder_set_label(s):
+    a = next(folder1_info(s))
+    s.folder_set_label('stmantest1', 'SyncthingManagerTestFolder2')
+    b = next(folder1_info(s))
+    assert a['label'] == 'SyncthingManagerTestFolder1'
+    assert b['label'] == 'SyncthingManagerTestFolder2'
+
+def test_folder_set_rescan(s):
+    a = next(folder1_info(s))
+    s.folder_set_rescan('stmantest1', 40)
+    b = next(folder1_info(s))
+    assert a['rescanIntervalS'] == 60
+    assert b['rescanIntervalS'] == 40
+
+def test_folder_set_minfree(s):
+    a = next(folder1_info(s))
+    s.folder_set_minfree('stmantest1', 5)
+    b = next(folder1_info(s))
+    assert a['minDiskFreePct'] == 0
+    assert b['minDiskFreePct'] == 5
+
+def test_folder_set_type(s):
+    a = next(folder1_info(s))
+    s.folder_set_type('stmantest1', 'readonly')
+    b = next(folder1_info(s))
+    assert a['type'] == 'readwrite'
+    assert b['type'] == 'readonly'

@@ -321,6 +321,27 @@ class SyncthingManager(Syncthing):
         raise SyncthingManagerError(devicestr + " is not associated with "
                 + folderstr)
 
+    def folder_edit(self, folderstr, prop, value):
+        config = self.system.config()
+        info = self.folder_info(folderstr)
+        if info['index'] == None:
+            raise SyncthingManagerError("Folder not configured: " + folderstr)
+        else:
+            config['folders'][info['index']][prop] = value
+            self.system.set_config(config)
+
+    def folder_set_label(self, folderstr, label):
+        self.folder_edit(folderstr, 'label', label)
+
+    def folder_set_rescan(self, folderstr, rescan):
+        self.folder_edit(folderstr, 'rescanIntervalS', rescan)
+
+    def folder_set_minfree(self, folderstr, minfree):
+        self.folder_edit(folderstr, 'minDiskFreePct', minfree)
+
+    def folder_set_type(self, folderstr, folder_type):
+        self.folder_edit(folderstr, 'type', folder_type)
+
     def _device_list(self):
         """Prints out a formatted list of devices and their state from the
             active configuration."""
@@ -456,7 +477,19 @@ def arguments():
     unshare_folder_parser = folder_subparsers.add_parser('unshare', 
             help='Stop sharing folder with device')
     unshare_folder_parser.add_argument('folder', metavar='FOLDER', help='the folder ID or label')
-    unshare_folder_parser.add_argument('device', metavar='DEVICE', help='the device ID or label')
+    unshare_folder_parser.add_argument('device', metavar='DEVICE', help='the device ID or name')
+
+    edit_folder_parser = folder_subparsers.add_parser('edit',
+            help="modify a configured folder")
+    edit_folder_parser.add_argument('folder', metavar='FOLDER', help='the folder ID or label')
+    edit_folder_parser.add_argument('--label', '-n', metavar='LABEL',
+            help='the label to be set')
+    edit_folder_parser.add_argument('--rescan', '-r', metavar='INTERVAL',
+            help="the time (in seconds) between scanning for changes")
+    edit_folder_parser.add_argument('--minfree', '-m', metavar='PERCENT',
+            help='percentage of space that should be available on the disk this folder resides')
+    edit_folder_parser.add_argument('--type', '-t', metavar='TYPE', dest='folder_type',
+            help='readonly or readwrite')
 
     list_folder_parser = folder_subparsers.add_parser('list', help='prints a list of configured folders')
 
@@ -543,6 +576,15 @@ def main():
                 st.share_folder(args.folder, args.device)
             elif args.folderparser_name == 'unshare':
                 st.unshare_folder(args.folder, args.device)
+            elif args.folderparser_name == 'edit':
+                if args.label:
+                    st.folder_set_label(args.folder, args.label)
+                if args.rescan:
+                    st.folder_set_rescan(args.folder, args.rescan)
+                if args.minfree:
+                    st.folder_set_minfree(args.folder, args.minfree)
+                if args.folder_type:
+                    st.folder_set_type(args.folder, args.folder_type)
             elif args.folderparser_name == 'list':
                 st._folder_list()
     except SyncthingError as err:
