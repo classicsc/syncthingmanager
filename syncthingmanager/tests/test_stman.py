@@ -1,5 +1,15 @@
 from unittest import TestCase
 
+def device1_info(s):
+    cfg = s.system.config()
+    a = filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices'])
+    return a
+
+def folder1_info(s):
+    cfg = s.system.config()
+    a = filter(lambda x: x['id'] == 'stmantest1', cfg['folders']) 
+    return a
+
 def test_device_info(s):
     tc = TestCase()
     info = s.device_info('SyncthingManagerTestDevice1')
@@ -28,53 +38,41 @@ def test_add_device(s):
     assert found
 
 def test_remove_device(s):
-    cfg = s.system.config()
-    a = filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices'])
-    assert next(a, False)
+    a = device1_info(s)
     s.remove_device('SyncthingManagerTestDevice1')
-    cfg = s.system.config()
-    b = filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices'])
+    b = device1_info(s)
     assert not next(b, False)
 
 def test_edit_device(s):
-    cfg = s.system.config()
-    a = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices']))
+    a = next(device1_info(s))
     s.edit_device('SyncthingManagerTestDevice1', 'introducer', True)
     s.edit_device('SyncthingManagerTestDevice1', 'compression', 'always')
     address = ['tcp://127.0.0.2:8384']
     s.edit_device('SyncthingManagerTestDevice1', 'addresses', address)
-    cfg = s.system.config()
-    b = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices']))
+    b = next(device1_info(s))
     assert b['introducer']
     assert a['compression'] != 'always'
     assert b['compression'] == 'always'
     assert b['addresses'] == address
 
 def test_device_add_address(s):
-    cfg = s.system.config()
-    a = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices']))
+    a = next(device1_info(s))
     s.device_add_address('SyncthingManagerTestDevice1', 'tcp://127.0.0.2:8384')
-    cfg = s.system.config()
-    b = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices']))
+    b = next(device1_info(s))
     assert 'tcp://127.0.0.2:8384' not in a['addresses']
     assert 'tcp://127.0.0.2:8384' in b['addresses']
 
 def test_device_remove_address(s):
-    cfg = s.system.config()
-    a = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices']))
+    a = next(device1_info(s))
     s.device_remove_address('SyncthingManagerTestDevice1', 'localhost')
-    cfg = s.system.config()
-    b = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices']))
+    b = next(device1_info(s))
     assert 'localhost' in a['addresses']
     assert 'localhost' not in b['addresses']
 
 def test_device_change_name(s):
-    cfg = s.system.config()
-    a = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices']))
+    a = next(device1_info(s))
     s.device_change_name('SyncthingManagerTestDevice1', 'SyncthingManagerTestDevice2')
-    cfg = s.system.config()
-    b = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice2', cfg['devices']))
-    assert a['name'] == 'SyncthingManagerTestDevice1'
+    b = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice2', s.system.config()['devices']))
     assert b['name'] == 'SyncthingManagerTestDevice2'
 
 def test_add_folder(s, temp_folder):
@@ -90,19 +88,15 @@ def test_add_folder(s, temp_folder):
     assert found
 
 def test_remove_folder(s):
-    cfg = s.system.config()
-    a = filter(lambda x: x['id'] == 'stmantest1', cfg['folders'])
+    a = folder1_info(s)
     assert next(a, False)
     s.remove_folder('stmantest1')
-    cfg = s.system.config()
-    b = filter(lambda x: x['id'] == 'stmantest1', cfg['folders'])
+    b = folder1_info(s)
     assert not next(b, False)
 
 def test_share_folder(s):
-    cfg = s.system.config()
-    a = filter(lambda x: x['id'] == 'stmantest1', cfg['folders']) 
+    a = folder1_info(s)
     s.share_folder('stmantest1', 'SyncthingManagerTestDevice1')
-    cfg = s.system.config()
-    b = filter(lambda x: x['id'] == 'stmantest1', cfg['folders']) 
+    b = folder1_info(s)
     assert len(next(a)['devices']) == 1
     assert len(next(b)['devices']) == 2
