@@ -193,15 +193,23 @@ class SyncthingManager(Syncthing):
             address(str): a tcp://address to add.
         """
         info = self.device_info(devicestr)
-        base_addresses = self.system.config()['devices'][info['index']]['addresses']
-        self.edit_device(devicestr, addresses, base_addresses.append(address))
+        try:
+            addresses = self.system.config()['devices'][info['index']]['addresses']
+        except TypeError:
+            raise SyncthingManagerError('Device not configured: ' + devicestr)
+        addresses.append(address)
+        self.edit_device(devicestr, 'addresses', addresses)
 
     def device_remove_address(self, devicestr, address):
         """The inverse of device_add_address."""
         info = self.device_info(devicestr)
-        base_addresses = self.system.config()['devices'][info['index']]['addresses']
         try:
-            self.edit_device(devicestr, 'addresses', base_addresses.remove('address'))
+            addresses = self.system.config()['devices'][info['index']]['addresses']
+        except TypeError:
+            raise SyncthingManagerError('Device not configured: ' + devicestr)
+        try:
+            addresses.remove(address)
+            self.edit_device(devicestr, 'addresses', addresses)
         except ValueError:
             pass
 

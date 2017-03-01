@@ -50,6 +50,24 @@ def test_edit_device(s):
     assert b['compression'] == 'always'
     assert b['addresses'] == address
 
+def test_device_add_address(s):
+    cfg = s.system.config()
+    a = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices']))
+    s.device_add_address('SyncthingManagerTestDevice1', 'tcp://127.0.0.2:8384')
+    cfg = s.system.config()
+    b = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices']))
+    assert 'tcp://127.0.0.2:8384' not in a['addresses']
+    assert 'tcp://127.0.0.2:8384' in b['addresses']
+
+def test_device_remove_address(s):
+    cfg = s.system.config()
+    a = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices']))
+    s.device_remove_address('SyncthingManagerTestDevice1', 'localhost')
+    cfg = s.system.config()
+    b = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices']))
+    assert 'localhost' in a['addresses']
+    assert 'localhost' not in b['addresses']
+
 def test_device_change_name(s):
     cfg = s.system.config()
     a = next(filter(lambda x: x['name'] == 'SyncthingManagerTestDevice1', cfg['devices']))
