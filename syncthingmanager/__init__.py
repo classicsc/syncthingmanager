@@ -22,6 +22,7 @@ import pathlib
 import sys
 import os
 import xml.etree.ElementTree as ET
+from textwrap import dedent
 
 # Put globals here
 __NAME__ = 'syncthingmanager'
@@ -50,9 +51,9 @@ class SyncthingManager(Syncthing):
         Args:
             devicestr (str): the string that may be a deviceID or configured
                 device name.
-            
+           
         Returns:
-            dict: 
+            dict:
                 id: The deviceID in modern format, or None if not recogized.
                 index: the index of the device in config['devices'] in the
                     current configuration, or None if not configured.
@@ -74,22 +75,22 @@ class SyncthingManager(Syncthing):
                     deviceindex = index
                     for folder in config['folders']:
                         for d in folder['devices']:
-                            if d['deviceID'] == device_id: 
+                            if d['deviceID'] == device_id:
                                 folders.append(folder['id'])
         else:
             for index, device in enumerate(config['devices']):
                 if device_id == device['deviceID']:
                     deviceindex = index
                     device_name = device['name']
-            for folder in config['folders']:
-                for d in folder['devices']:
-                    if device['deviceID'] == d['deviceID']: 
-                        folders.append(folder['id'])
-        return {'id': device_id, 'index': deviceindex, 'folders': folders, 
+                    for folder in config['folders']:
+                        for d in folder['devices']:
+                            if device['deviceID'] == d['deviceID']:
+                                folders.append(folder['id'])
+        return {'id': device_id, 'index': deviceindex, 'folders': folders,
                 'name': device_name}
 
     def folder_info(self, folderstr):
-        """Looks for a configured folder based on a user-input string and 
+        """Looks for a configured folder based on a user-input string and
         returns some useful info about it. Looks for a matching ID first,
         only considers labels if none is found. Further, duplicate labels
         are not reported. The first matching label in the config is used.
@@ -97,7 +98,7 @@ class SyncthingManager(Syncthing):
             folderstr (str): the folder ID or label
         returns:
             dict:
-                id: (str) the folder ID 
+                id: (str) the folder ID
                 index: (str) the index of the folder in the active configuration
                 label: (str) the folder label
                 devices: (list) the deviceIDs associated with the folder
@@ -121,7 +122,7 @@ class SyncthingManager(Syncthing):
                 return info
         return None
 
-    def add_device(self, device_id, name='', address='', dynamic=False, 
+    def add_device(self, device_id, name='', address='', dynamic=False,
             introducer=False):
         """ Adds a device to the configuration and sets the configuration.
         Args:
@@ -144,7 +145,7 @@ class SyncthingManager(Syncthing):
             if dynamic:
                 addresses.append('dynamic')
             config['devices'].append(dict({'deviceID': info['id'], 'name': name,
-                'addresses': addresses, 'compression': 'metadata', 
+                'addresses': addresses, 'compression': 'metadata',
                 'certName': '', 'introducer': introducer}))
             self.system.set_config(config)
 
@@ -169,14 +170,14 @@ class SyncthingManager(Syncthing):
         Args:
             devicestr (str): The device ID or name.
             prop (str): the property as in the REST config documentaion
-            value: the new value of the property. Needs to be in a 
+            value: the new value of the property. Needs to be in a
                 serializable format accepted by the API.
         Returns:
             None
         Raises: ``SyncthingManagerError``: when the given device is not configured."""
         config = self.system.config()
         info = self.device_info(devicestr)
-        if info['index'] == None:
+        if info['index'] is None:
             raise SyncthingManagerError("Device not configured: " + devicestr)
         else:
             config['devices'][info['index']][prop] = value
@@ -216,7 +217,7 @@ class SyncthingManager(Syncthing):
         except ValueError:
             pass
 
-    def add_folder(self, path, folderid, label='', foldertype='readwrite', 
+    def add_folder(self, path, folderid, label='', foldertype='readwrite',
             rescan=60):
         """Adds a folder to the configuration and sets it.
         Args:
@@ -248,7 +249,7 @@ class SyncthingManager(Syncthing):
                 raise SyncthingManagerError("There was a problem with the path \
                         entered: " + path)
             folder = dict({'id': folderid, 'label': label, 'path': str(path),
-                'type': foldertype, 'rescanIntervalS': rescan, 'fsync': True, 
+                'type': foldertype, 'rescanIntervalS': rescan, 'fsync': True,
                 'autoNormalize': True, 'maxConflicts': 10, 'pullerSleepS': 0,
                 'minDiskFreePct': 1})
             config['folders'].append(folder)
@@ -264,7 +265,7 @@ class SyncthingManager(Syncthing):
         info = self.folder_info(folderstr)
         if not info:
             raise SyncthingManagerError(folderstr + " is not the ID or label "
-                    + "of a configured folder.")
+                    "of a configured folder.")
         config = self.system.config()
         del config['folders'][info['index']]
         self.system.set_config(config)
@@ -282,15 +283,15 @@ class SyncthingManager(Syncthing):
         info = self.folder_info(folderstr)
         if not info:
             raise SyncthingManagerError(folderstr + " is not the ID or label "
-                    + "of a configured folder.")
+                    "of a configured folder.")
         deviceinfo = self.device_info(devicestr)
         if deviceinfo['index'] is None:
-            raise SyncthingManagerError(devicestr + " is not a configured" 
-                     + " device name or ID")
+            raise SyncthingManagerError(devicestr + " is not a configured"
+                     " device name or ID")
         for device in info['devices']:
             if device['deviceID'] == deviceinfo['id']:
-                raise SyncthingManagerError(devicestr + " is already " 
-                        + "associated with " + folderstr)
+                raise SyncthingManagerError(devicestr + " is already "
+                        "associated with " + folderstr)
         config = self.system.config()
         info['devices'].append(dict({'deviceID': deviceinfo['id']}))
         config['folders'][info['index']]['devices'] = info['devices']
@@ -361,7 +362,7 @@ class SyncthingManager(Syncthing):
         self.folder_edit(folderstr, 'versioning', versioning)
 
     def folder_setup_versioning_staggered(self, folderstr, maxage, path):
-        maxage = maxage*24*60**2  # Convert to seconds        
+        maxage = maxage*24*60**2  # Convert to seconds 
         versioning = {'params': {'maxAge': str(maxage), 'cleanInterval': '3600',
             'versionsPath': path}, 'type': 'staggered'}
         self.folder_edit(folderstr, 'versioning', versioning)
@@ -385,21 +386,24 @@ class SyncthingManager(Syncthing):
         for device in connected:
             address = connections[device['deviceID']]['address']
             folders = self.device_info(device['deviceID'])['folders']
-            #TODO Figure out the sync percentage per device. Probably from
-            # events API.
-            #if complete == 100:
-            #    sync = '\tUp to Date'
-            #else:
-            #    sync = '\tSyncing (' + str(complete) + '%)'
-            sync = '\tConnected'
-            print(device['name'] + OKGREEN + sync + ENDC)
-            print('\tAt:\t' + address)
-            print('\tFolders:\t' + ','.join(map(str,folders)))
+            outstr = """\
+                    {0}     {1}Connected{2}
+                        At:     {3}
+                        Folders:    {4}
+                        ID:     {5}
+            """.format(device['name'], OKGREEN, ENDC, address,
+                    ', '.join(map(str, folders)), device['deviceID'])
+            print(dedent(outstr))
 
         for device in not_connected:
             folders = self.device_info(device['deviceID'])['folders']
-            print(device['name'] + FAIL + ' Not Connected' + ENDC)
-            print('\tFolders:\t' + ','.join(map(str,folders)))
+            outstr = """\
+                    {0}     {1}Not Connected{2}
+                        Folders:    {3}
+                        ID:     {4}
+            """.format(device['name'], FAIL, ENDC,
+                    ', '.join(map(str, folders)), device['deviceID'])
+            print(dedent(outstr))
 
     def _folder_list(self):
         """Prints out a formatted list of folders from the configuration."""
@@ -413,15 +417,20 @@ class SyncthingManager(Syncthing):
                 folderstr = folder['id']
             else:
                 folderstr = folder['label']
-            print(folderstr)
-            print('\tConnected devices: ' + ','.join(map(str, devices)))
-
+            outstr = """\
+                    {0}
+                        Shared With:  {1}
+                        Folder ID:  {2}
+                        Folder Path:    {3}
+                    """.format(folderstr, ', '.join(map(str, devices)),
+                            folder['id'], folder['path'])
+            print(dedent(outstr))
 
 def arguments():
     parser = ArgumentParser()
     parser.add_argument('--config', '-c', default=__DEFAULT_CONFIG_LOCATION__,
             help="stman configuration file")
-    base_subparsers = parser.add_subparsers(dest='subparser_name', 
+    base_subparsers = parser.add_subparsers(dest='subparser_name',
             metavar='action')
     base_subparsers.required = True
 
@@ -571,11 +580,11 @@ def configure(configfile, apikey, hostname, port, name, default):
             gui = root.find('gui')
             apikey = gui.find('apikey').text
         except FileNotFoundError:
-            raise SyncthingManagerError("Autoconfiguration failed. Please \
-                    specify the API key manually.")
+            raise SyncthingManagerError("Autoconfiguration failed. Please "
+                    "specify the API key manually.")
         except AttributeError:
-            raise SyncthingManagerError("Autoconfiguration failed. Please \
-                    specify the API key manually.")
+            raise SyncthingManagerError("Autoconfiguration failed. Please "
+                    "specify the API key manually.")
     config.read(configfile)
     config[name] = {}
     config[name]['APIkey'] = apikey
@@ -608,12 +617,12 @@ def main():
     try:
         args = arguments()
         if args.subparser_name == 'configure':
-            configure(args.config, args.apikey, args.hostname, args.port, 
+            configure(args.config, args.apikey, args.hostname, args.port,
                     args.name, args.default)
             sys.exit(0)
         if not getAPIInfo(args.config):
             raise SyncthingManagerError("No Syncthing daemon is configured. Use "
-                + "stman configure apikey to initialize a configuration (apikey" + 
+                + "stman configure apikey to initialize a configuration (apikey" +
                 " is in the syncthing settings and config.xml)")
         APIInfo = getAPIInfo(args.config)
         st = SyncthingManager(APIInfo['APIkey'], APIInfo['Hostname'], APIInfo['Port'])
@@ -638,7 +647,7 @@ def main():
                     st.device_remove_address(args.device, args.remove_address)
         elif args.subparser_name == 'folder':
             if args.folderparser_name == 'add':
-                st.add_folder(args.path, args.folderID, args.label, 
+                st.add_folder(args.path, args.folderID, args.label,
                         args.foldertype, args.rescan_interval)
             elif args.folderparser_name == 'remove':
                 st.remove_folder(args.folder)
