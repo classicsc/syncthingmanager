@@ -334,13 +334,42 @@ class SyncthingManager(Syncthing):
         self.folder_edit(folderstr, 'label', label)
 
     def folder_set_rescan(self, folderstr, rescan):
-        self.folder_edit(folderstr, 'rescanIntervalS', rescan)
+        self.folder_edit(folderstr, 'rescanIntervalS', int(rescan))
 
     def folder_set_minfree(self, folderstr, minfree):
-        self.folder_edit(folderstr, 'minDiskFreePct', minfree)
+        self.folder_edit(folderstr, 'minDiskFreePct', int(minfree))
 
     def folder_set_type(self, folderstr, folder_type):
         self.folder_edit(folderstr, 'type', folder_type)
+
+    def folder_set_order(self, folderstr, order):
+        self.folder_edit(folderstr, 'order', order)
+
+    def folder_set_ignore_perms(self, folderstr, ignore):
+        self.folder_edit(folderstr, 'ignorePerms', ignore)
+
+    def folder_setup_versioning_trashcan(self, folderstr, cleanoutdays):
+        versioning = {'params': {'cleanoutDays': str(cleanoutdays)}, 'type':
+            'trashcan'}
+        self.folder_edit(folderstr, 'versioning', versioning)
+
+    def folder_setup_versioning_simple(self, folderstr, keep):
+        versioning = {'params': {'keep': str(keep)}, 'type': 'simple'}
+        self.folder_edit(folderstr, 'versioning', versioning)
+
+    def folder_setup_versioning_staggered(self, folderstr, maxage, path):
+        maxage = maxage*24*60**2  # Convert to seconds        
+        versioning = {'params': {'maxAge': str(maxage), 'cleanInterval': '3600',
+            'versionsPath': path}, 'type': 'staggered'}
+        self.folder_edit(folderstr, 'versioning', versioning)
+
+    def folder_setup_versioning_external(self, folderstr, command):
+        versioning = {'params': {'command': command}, 'type': 'external'}
+        self.folder_edit(folderstr, 'versioning', versioning)
+
+    def folder_setup_versioning_none(self, folderstr):
+        versioning = {'params': {}, 'type': ''}
+        self.folder_edit(folderstr, 'versioning', versioning)
 
     def _device_list(self):
         """Prints out a formatted list of devices and their state from the
@@ -490,6 +519,29 @@ def arguments():
             help='percentage of space that should be available on the disk this folder resides')
     edit_folder_parser.add_argument('--type', '-t', metavar='TYPE', dest='folder_type',
             help='readonly or readwrite')
+    edit_folder_parser.add_argument('--order', '-o', metavar='ORDER',
+            help='see the Syncthing documentation for all options')
+    edit_folder_parser.add_argument('--ignore-permissions', action='store_true',
+            help='ignore file permissions. Normally used on non-Unix filesystems')
+    edit_folder_parser.add_argument('--sync-permissions', action='store_true',
+            help='turn on syncing file permissions.')
+
+    folder_versioning_parser = folder_subparsers.add_parser('versioning', 
+            help="configure file versioning")
+    folder_versioning_parser.add_argument('folder', metavar='FOLDER', help="the folder to modify")
+    folder_versioning_subparsers = folder_versioning_parser.add_subparsers(dest='versionparser_name', 
+            metavar='TYPE')
+    trashcan_parser = folder_versioning_subparsers.add_parser('trashcan', help="move deleted files to .stversions")
+    trashcan_parser.add_argument('--cleanout', default='0', help="number of days to keep files in trash")
+    simple_parser = folder_versioning_subparsers.add_parser('simple', help="keep old versions of files in .stversions")
+    simple_parser.add_argument('--versions', default='5', help="the number of versions to keep")
+    staggered_parser = folder_versioning_subparsers.add_parser('staggered', help="specify a maximum age for versions")
+    staggered_parser.add_argument('--maxage', metavar='MAXAGE', default='365', 
+            help="the maximum time to keep a version, in days, 0=forever")
+    staggered_parser.add_argument('--path', metavar='PATH', default='', help="a custom path for storing versions")
+    external_parser = folder_versioning_subparsers.add_parser('external', help="use a custom command for versioning")
+    external_parser.add_argument('command', metavar='COMMAND', help='the command to run')
+    noversioning_parser = folder_versioning_subparsers.add_parser('none', help="turn off versioning")
 
     list_folder_parser = folder_subparsers.add_parser('list', help='prints a list of configured folders')
 
@@ -565,7 +617,7 @@ def main():
                 if args.add_address:
                     st.device_add_address(args.device, args.add_address)
                 if args.remove_address:
-                    st.device_remove_address(args.device, args.address)
+                    st.device_remove_address(args.device, args.remove_address)
         elif args.subparser_name == 'folder':
             if args.folderparser_name == 'add':
                 st.add_folder(args.path, args.folderID, args.label, 
@@ -585,6 +637,23 @@ def main():
                     st.folder_set_minfree(args.folder, args.minfree)
                 if args.folder_type:
                     st.folder_set_type(args.folder, args.folder_type)
+                if args.order:
+                    st.folder_set_order(args.folder, args.order)
+                if args.ignore_permissions:
+                    st.folder_set_ignore_perms(args.folder, args.ignore_permissions)
+                if args.sync_permissions:
+                    st.folder_set_ignore_perms(args.folder, False)
+            elif args.folderparser_name == 'versioning':
+                if args.versionparser_name == 'trashcan':
+                    st.folder_setup_versioning_trashcan(args.folder, args.cleanout)
+                elif args.versionparser_name == 'simple':
+                    st.folder_setup_versioning_simple(args.folder, args.versions)
+                elif args.versionparser_name == 'staggered':
+                    st.folder_setup_versioning_staggered(args.folder, args.maxage, args.path)
+                elif args.versionparser_name == 'external':
+                    st.folder_setup_versioning_external(args.folder, args.command)
+                elif args.versionparser_name == 'none':
+                    st.folder_setup_versioning_none(args.folder)
             elif args.folderparser_name == 'list':
                 st._folder_list()
     except SyncthingError as err:

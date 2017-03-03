@@ -135,3 +135,49 @@ def test_folder_set_type(s):
     b = next(folder1_info(s))
     assert a['type'] == 'readwrite'
     assert b['type'] == 'readonly'
+
+def test_folder_set_order(s):
+    a = next(folder1_info(s))
+    s.folder_set_order('stmantest1', 'alphabetic')
+    b = next(folder1_info(s))
+    assert a['order'] == 'random'
+    assert b['order'] == 'alphabetic'
+
+def test_folder_set_ignore_perms(s):
+    a = next(folder1_info(s))
+    s.folder_set_ignore_perms('stmantest1', True)
+    b = next(folder1_info(s))
+    assert not a['ignorePerms']
+    assert b['ignorePerms']
+
+def test_folder_setup_versioning_trashcan(s):
+    a = next(folder1_info(s))
+    s.folder_setup_versioning_trashcan('stmantest1', 9)
+    b = next(folder1_info(s))
+    assert b['versioning'] == {'params': {'cleanoutDays': '9'}, 'type':
+        'trashcan'}
+
+def test_folder_setup_versioning_simple(s):
+    a = next(folder1_info(s))
+    s.folder_setup_versioning_simple('stmantest1', 6)
+    b = next(folder1_info(s))
+    assert b['versioning'] == {'params': {'keep': '6'}, 'type': 'simple'}
+
+def test_folder_setup_versioning_staggered(s):
+    a = next(folder1_info(s))
+    s.folder_setup_versioning_staggered('stmantest1', 365, 'versions')
+    b = next(folder1_info(s))
+    assert b['versioning'] == {'params': {'maxAge': '31536000', 'cleanInterval': '3600',
+        'versionsPath': 'versions'}, 'type': 'staggered'}
+
+def test_folder_setup_versioning_external(s):
+    a = next(folder1_info(s))
+    s.folder_setup_versioning_external('stmantest1', 'rm -r')
+    b = next(folder1_info(s))
+    assert b['versioning'] == {'params': {'command': 'rm -r'}, 'type': 'external'}
+
+def test_folder_setup_versioning_none(s):
+    a = next(folder1_info(s))
+    s.folder_setup_versioning_none('stmantest1')
+    b = next(folder1_info(s))
+    assert b['versioning'] == {'params': {}, 'type': ''}

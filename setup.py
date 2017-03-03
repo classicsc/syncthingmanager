@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
         name='syncthingmanager',
-        version='0.1.0',
+        version='0.1.0-dev1',
         description='A commandline tool for controlling the Syncthing API',
         url ='https://github.com/classicsc/syncthingmanager',
         author='Samuel Smoker',
