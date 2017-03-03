@@ -21,11 +21,13 @@ import configparser
 import pathlib
 import sys
 import os
+import xml.etree.ElementTree as ET
 
 # Put globals here
 __NAME__ = 'syncthingmanager'
 __VERSION__ = '0.1.0'
 __DEFAULT_CONFIG_LOCATION__ = '~/.config/syncthingmanager/syncthingmanager.conf'
+__DEFAULT_ST_CONFIG_LOCATION__ = '~/.config/syncthing/config.xml'
 
 # Some terminal colors
 HEADER = '\033[95m'
@@ -34,6 +36,7 @@ OKGREEN = '\033[92m'
 WARNING = '\033[93m'
 FAIL = '\033[91m'
 ENDC = '\033[0m'
+
 
 class SyncthingManagerError(Exception):
     pass
@@ -281,7 +284,7 @@ class SyncthingManager(Syncthing):
             raise SyncthingManagerError(folderstr + " is not the ID or label "
                     + "of a configured folder.")
         deviceinfo = self.device_info(devicestr)
-        if deviceinfo['index'] == None:
+        if deviceinfo['index'] is None:
             raise SyncthingManagerError(devicestr + " is not a configured" 
                      + " device name or ID")
         for device in info['devices']:
@@ -308,7 +311,7 @@ class SyncthingManager(Syncthing):
             raise SyncthingManagerError(folderstr + " is not the ID or label \
                     of a configured folder.")
         deviceinfo = self.device_info(devicestr)
-        if deviceinfo['index'] == None:
+        if deviceinfo['index'] is None:
             raise SyncthingManagerError(devicestr + " is not a configured \
                     device name or ID")
         config = self.system.config()
@@ -324,7 +327,7 @@ class SyncthingManager(Syncthing):
     def folder_edit(self, folderstr, prop, value):
         config = self.system.config()
         info = self.folder_info(folderstr)
-        if info['index'] == None:
+        if info['index'] is None:
             raise SyncthingManagerError("Folder not configured: " + folderstr)
         else:
             config['folders'][info['index']][prop] = value
@@ -414,7 +417,6 @@ class SyncthingManager(Syncthing):
             print('\tConnected devices: ' + ','.join(map(str, devices)))
 
 
-
 def arguments():
     parser = ArgumentParser()
     parser.add_argument('--config', '-c', default=__DEFAULT_CONFIG_LOCATION__,
@@ -427,8 +429,8 @@ def arguments():
             help="configure stman. If the configuration file specified in " + 
             "-c (or the default) does not exist, it will be created. To edit an " + 
             "existing configuration, specify all options again.")
-    configuration_parser.add_argument('APIkey', help="the Syncthing API key, "
-            + "found in the GUI or config.xml")
+    configuration_parser.add_argument('-k', '--apikey', help="the Syncthing API key, "
+            + "found in the GUI or config.xml", default=None)
     configuration_parser.add_argument('--hostname', '-a', default='localhost',
             help="the hostname to use. default localhost.")
     configuration_parser.add_argument('--port', '-p', default='8384',
@@ -547,6 +549,7 @@ def arguments():
 
     return parser.parse_args()
 
+
 def configure(configfile, apikey, hostname, port, name, default):
     config = configparser.ConfigParser()
     configfile = os.path.expanduser(configfile)
@@ -560,6 +563,19 @@ def configure(configfile, apikey, hostname, port, name, default):
             raise SyncthingManagerError("Couldn't create a path to " + configfile)
         config['DEFAULT'] = {}
         config['DEFAULT']['Name'] = name
+    if not apikey:
+        try:
+            stconfigfile = os.path.expanduser(__DEFAULT_ST_CONFIG_LOCATION__)
+            stconfig = ET.parse(stconfigfile)
+            root = stconfig.getroot()
+            gui = root.find('gui')
+            apikey = gui.find('apikey').text
+        except FileNotFoundError:
+            raise SyncthingManagerError("Autoconfiguration failed. Please \
+                    specify the API key manually.")
+        except AttributeError:
+            raise SyncthingManagerError("Autoconfiguration failed. Please \
+                    specify the API key manually.")
     config.read(configfile)
     config[name] = {}
     config[name]['APIkey'] = apikey
@@ -572,6 +588,7 @@ def configure(configfile, apikey, hostname, port, name, default):
             config.write(cfg)
     except OSError:
         raise SyncthingManagerError("Couldn't write to the config file " + configfile)
+
 
 def getAPIInfo(configfile, name='DEFAULT'):
     if not os.path.exists(os.path.expanduser(configfile)):
@@ -586,11 +603,12 @@ def getAPIInfo(configfile, name='DEFAULT'):
         raise SyncthingManagerError("The Syncthing daemon specified"
                 + " is not configured.")
 
+
 def main():
     try:
         args = arguments()
         if args.subparser_name == 'configure':
-            configure(args.config, args.APIkey, args.hostname, args.port, 
+            configure(args.config, args.apikey, args.hostname, args.port, 
                     args.name, args.default)
             sys.exit(0)
         if not getAPIInfo(args.config):
@@ -662,6 +680,7 @@ def main():
     except SyncthingManagerError as err:
         print(err)
         sys.exit(1)
+
 
 if __name__ == '__main__':
     main()
