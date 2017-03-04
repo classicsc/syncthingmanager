@@ -232,7 +232,7 @@ class SyncthingManager(Syncthing):
             label (str): the label used as an alternate, local name for the
                 folder.
             foldertype (str): see syncthing documentation...
-            rescan (int): the interval for scanning in seconds. 
+            rescan (int): the interval for scanning in seconds.
         Returns:
             None
         Raises:
@@ -379,6 +379,25 @@ class SyncthingManager(Syncthing):
         versioning = {'params': {}, 'type': ''}
         self.folder_edit(folderstr, 'versioning', versioning)
 
+    def _print_device_info(self, devicestr):
+        config = self.system.config()
+        info = self.device_info(devicestr)
+        try:
+            device = config['devices'][info['index']]
+        except TypeError:
+            raise SyncthingManagerError("Device not configured: " + devicestr)
+        folders = self.device_info(device['deviceID'])['folders']
+        outstr = """\
+                {0}
+                    Addresses:     {1}
+                    Folders:    {2}
+                    ID:     {3}
+                    Introducer?     {4}
+                """.format(device['name'], ', '.join(device['addresses']),
+                ', '.join(map(str, folders)), device['deviceID'],
+                device['introducer'])
+        print(dedent(outstr))
+
     def _device_list(self):
         """Prints out a formatted list of devices and their state from the
             active configuration."""
@@ -423,6 +442,60 @@ class SyncthingManager(Syncthing):
                     ', '.join(map(str, folders)), device['deviceID'])
             print(dedent(outstr))
 
+    def _print_folder_info(self, folderstr):
+        info = self.folder_info(folderstr)
+        config = self.system.config()
+        try:
+            folder = config['folders'][info['index']]
+        except TypeError:
+            raise SyncthingManagerError("Folder not configured: " + folderstr)
+        status = self.system.status()
+        devices = []
+        for device in folder['devices']:
+            if device['deviceID'] == status['myID']:
+                continue
+            name = self.device_info(device['deviceID'])['name']
+            devices.append(name)
+        if folder['label'] == '':
+            folderstr = folder['id']
+        else:
+            folderstr = folder['label']
+        nondefaults = ""
+        if folder['rescanIntervalS'] != 60:
+            nondefaults += ('    Rescan Interval:    ' +
+                    str(folder['rescanIntervalS']))
+        if folder['type'] != 'readwrite':
+            nondefaults += ('\n    Folder Type:      ' +
+                    folder['type'])
+        if folder['order'] != 'random':
+            nondefaults += ('\n    File Pull Order:  ' +
+                    folder['order'])
+        if folder['versioning']['type'] != '':
+            nondefaults += ('\n    Versioning:       ' +
+                    folder['versioning']['type'])
+            if folder['versioning']['type'] == 'trashcan':
+                nondefaults += ('\n    Clean out after:    ' +
+                        folder['versioning']['params']['cleanoutDays'])
+            if folder['versioning']['type'] == 'simple':
+                nondefaults += ('\n    Keep Versions:      ' +
+                        folder['versioning']['params']['keep'])
+            if folder['versioning']['type'] == 'staggered':
+                nondefaults += ('\n    Versions Path:      ' +
+                        folder['versioning']['params']['versionsPath'])
+            if folder['versioning']['type'] == 'external':
+                nondefaults += ('\n    Command:            ' +
+                        folder['versioning']['params']['command'])
+        outstr = """\
+                {0}
+                    Shared With:  {1}
+                    Folder ID:  {2}
+                    Folder Path:    {3}\
+                """.format(folderstr, ', '.join(map(str, devices)),
+                        folder['id'], folder['path'])
+        print(dedent(outstr))
+        print(nondefaults)
+
+
     def _folder_list(self):
         """Prints out a formatted list of folders from the configuration."""
         config = self.system.config()
@@ -453,7 +526,7 @@ def arguments():
     parser.add_argument('--config', '-c', default=__DEFAULT_CONFIG_LOCATION__,
             help="stman configuration file")
     parser.add_argument('--device', '-d', metavar='NAME', default='DEFAULT',
-            help="the configured API to use")
+            help="the configured API to use", dest='config_device')
     base_subparsers = parser.add_subparsers(dest='subparser_name',
             metavar='action')
     base_subparsers.required = True
@@ -490,8 +563,13 @@ def arguments():
     add_device_parser.add_argument('-i', '--introducer', action='store_true',
             help="makes this device an introducer.")
 
+    device_info_parser = device_subparsers.add_parser('info',
+            help="shows detailed device information")
+    device_info_parser.add_argument('device', metavar='DEVICE',
+            help="the device name or ID")
+
     list_device_parser = device_subparsers.add_parser('list',
-            help="prints a list of devices and some information")
+            help="shows a list of devices and some information")
 
     remove_device_parser = device_subparsers.add_parser('remove',
             help="remove a device")
@@ -578,7 +656,10 @@ def arguments():
     external_parser.add_argument('command', metavar='COMMAND', help='the command to run')
     noversioning_parser = folder_versioning_subparsers.add_parser('none', help="turn off versioning")
 
-    list_folder_parser = folder_subparsers.add_parser('list', help='prints a list of configured folders')
+    folder_info_parser = folder_subparsers.add_parser('info', help='show detailed information about a folder')
+    folder_info_parser.add_argument('folder', metavar='FOLDER', help='the folder name or label')
+
+    list_folder_parser = folder_subparsers.add_parser('list', help='show a list of configured folders')
 
     return parser.parse_args()
 
@@ -644,11 +725,11 @@ def main():
             configure(args.config, args.apikey, args.hostname, args.port,
                     args.name, args.default)
             sys.exit(0)
-        if not getAPIInfo(args.config, args.device):
+        if not getAPIInfo(args.config, args.config_device):
             raise SyncthingManagerError("No Syncthing daemon is configured. Use "
                 "stman configure apikey to initialize a configuration (apikey"
                 " is in the syncthing settings and config.xml)")
-        APIInfo = getAPIInfo(args.config, args.device)
+        APIInfo = getAPIInfo(args.config, args.config_device)
         st = SyncthingManager(APIInfo['APIkey'], APIInfo['Hostname'], APIInfo['Port'])
         if args.subparser_name == 'device':
             if args.deviceparser_name == 'add':
@@ -656,6 +737,8 @@ def main():
                         args.dynamic, args.introducer)
             elif args.deviceparser_name == 'remove':
                 st.remove_device(args.device)
+            elif args.deviceparser_name == 'info':
+                st._print_device_info(args.device)
             elif args.deviceparser_name == 'list':
                 st._device_list()
             elif args.deviceparser_name == 'edit':
@@ -705,6 +788,8 @@ def main():
                     st.folder_setup_versioning_external(args.folder, args.command)
                 elif args.versionparser_name == 'none':
                     st.folder_setup_versioning_none(args.folder)
+            elif args.folderparser_name == 'info':
+                st._print_folder_info(args.folder)
             elif args.folderparser_name == 'list':
                 st._folder_list()
     except SyncthingError as err:
