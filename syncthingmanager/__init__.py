@@ -23,12 +23,17 @@ import sys
 import os
 import xml.etree.ElementTree as ET
 from textwrap import dedent
+import platform
 
 # Put globals here
-__NAME__ = 'syncthingmanager'
 __VERSION__ = '0.1.0'
-__DEFAULT_CONFIG_LOCATION__ = '~/.config/syncthingmanager/syncthingmanager.conf'
-__DEFAULT_ST_CONFIG_LOCATION__ = '~/.config/syncthing/config.xml'
+__DEFAULT_CONFIG_LOCATION__ = '$HOME/.config/syncthingmanager/syncthingmanager.conf'
+if platform.system() == 'Windows':
+    __DEFAULT_ST_CONFIG_LOCATION__ = '%localappdata%/Syncthing/config.xml'
+elif platform.system() == 'Darwin':
+    __DEFAULT_ST_CONFIG_LOCATION__ = '$HOME/Library/Application Support/Syncthing/config.xml'
+else:
+    __DEFAULT_ST_CONFIG_LOCATION__ = '$HOME/.config/syncthing/config.xml'
 
 # Some terminal colors
 HEADER = '\033[95m'
@@ -51,7 +56,6 @@ class SyncthingManager(Syncthing):
         Args:
             devicestr (str): the string that may be a deviceID or configured
                 device name.
-           
         Returns:
             dict:
                 id: The deviceID in modern format, or None if not recogized.
@@ -231,7 +235,7 @@ class SyncthingManager(Syncthing):
             rescan (int): the interval for scanning in seconds. 
         Returns:
             None
-        Raises: 
+        Raises:
             ``SyncthingManagerError``: when the path is invalid
             ``SyncthingManagerError``: when a folder with identical label is
                 already configured. """
@@ -246,8 +250,8 @@ class SyncthingManager(Syncthing):
             try:
                 path = pathlib.Path(path).resolve()
             except pathlib.FileNotFoundError:
-                raise SyncthingManagerError("There was a problem with the path \
-                        entered: " + path)
+                raise SyncthingManagerError("There was a problem with the path "
+                        "entered: " + path)
             folder = dict({'id': folderid, 'label': label, 'path': str(path),
                 'type': foldertype, 'rescanIntervalS': rescan, 'fsync': True,
                 'autoNormalize': True, 'maxConflicts': 10, 'pullerSleepS': 0,
@@ -309,12 +313,12 @@ class SyncthingManager(Syncthing):
             None """
         info = self.folder_info(folderstr)
         if not info:
-            raise SyncthingManagerError(folderstr + " is not the ID or label \
-                    of a configured folder.")
+            raise SyncthingManagerError(folderstr + " is not the ID or label "
+                    "of a configured folder.")
         deviceinfo = self.device_info(devicestr)
         if deviceinfo['index'] is None:
-            raise SyncthingManagerError(devicestr + " is not a configured \
-                    device name or ID")
+            raise SyncthingManagerError(devicestr + " is not a configured "
+                    "device name or ID")
         config = self.system.config()
         for index, device in enumerate(info['devices']):
             if device['deviceID'] == deviceinfo['id']:
@@ -362,7 +366,7 @@ class SyncthingManager(Syncthing):
         self.folder_edit(folderstr, 'versioning', versioning)
 
     def folder_setup_versioning_staggered(self, folderstr, maxage, path):
-        maxage = maxage*24*60**2  # Convert to seconds 
+        maxage = maxage*24*60**2  # Convert to seconds
         versioning = {'params': {'maxAge': str(maxage), 'cleanInterval': '3600',
             'versionsPath': path}, 'type': 'staggered'}
         self.folder_edit(folderstr, 'versioning', versioning)
@@ -426,17 +430,20 @@ class SyncthingManager(Syncthing):
                             folder['id'], folder['path'])
             print(dedent(outstr))
 
+
 def arguments():
     parser = ArgumentParser()
     parser.add_argument('--config', '-c', default=__DEFAULT_CONFIG_LOCATION__,
             help="stman configuration file")
+    parser.add_argument('--device', '-d', metavar='NAME', default='DEFAULT',
+            help="the configured API to use")
     base_subparsers = parser.add_subparsers(dest='subparser_name',
             metavar='action')
     base_subparsers.required = True
 
     configuration_parser = base_subparsers.add_parser('configure',
-            help="configure stman. If the configuration file specified in " + 
-            "-c (or the default) does not exist, it will be created. To edit an " + 
+            help="configure stman. If the configuration file specified in "
+            "-c (or the default) does not exist, it will be created. To edit an " +
             "existing configuration, specify all options again.")
     configuration_parser.add_argument('-k', '--apikey', help="the Syncthing API key, "
             + "found in the GUI or config.xml", default=None)
@@ -451,10 +458,10 @@ def arguments():
 
     device_parser = base_subparsers.add_parser('device',
             help="work with devices")
-    device_subparsers = device_parser.add_subparsers(dest='deviceparser_name', 
+    device_subparsers = device_parser.add_subparsers(dest='deviceparser_name',
             metavar='ACTION')
     device_subparsers.required = True
-    add_device_parser = device_subparsers.add_parser('add', 
+    add_device_parser = device_subparsers.add_parser('add',
             help="configure a device")
     add_device_parser.set_defaults(name='', address='')
     add_device_parser.add_argument('deviceID', metavar='DEVICEID', help="the deviceID to be configured.")
@@ -485,18 +492,18 @@ def arguments():
             help='the level of compression to use (always, metadata, or never)')
     edit_device_parser.add_argument('-i', '--introducer', action='store_true',
             help='set the device as an introducer')
-    edit_device_parser.add_argument('-io', '--introducer-off', action='store_true', 
+    edit_device_parser.add_argument('-io', '--introducer-off', action='store_true',
             help='toggle the introducer setting off')
 
-    folder_parser = base_subparsers.add_parser('folder', 
+    folder_parser = base_subparsers.add_parser('folder',
             help="work with folders")
     folder_subparsers = folder_parser.add_subparsers(dest='folderparser_name',
             metavar='action')
     folder_subparsers.required = True
-    add_folder_parser = folder_subparsers.add_parser('add', 
+    add_folder_parser = folder_subparsers.add_parser('add',
             help="Configure a folder")
     add_folder_parser.add_argument('path', metavar='PATH', help="path to the folder to be added")
-    add_folder_parser.add_argument('folderID', metavar='ID', 
+    add_folder_parser.add_argument('folderID', metavar='ID',
             help="the folder ID. Must match the one used on all cluster devices.")
     add_folder_parser.add_argument('--label', '-l', help="a local name for the folder")
     add_folder_parser.add_argument('--foldertype', '-t', default='readwrite',
@@ -504,17 +511,17 @@ def arguments():
     add_folder_parser.add_argument('--rescan-interval', '-r', default=60,
             help='time in seconds between scanning for changes. Default 60.')
 
-    remove_folder_parser = folder_subparsers.add_parser('remove', 
+    remove_folder_parser = folder_subparsers.add_parser('remove',
             help='Remove a folder')
-    remove_folder_parser.add_argument('folder', metavar='FOLDER', 
+    remove_folder_parser.add_argument('folder', metavar='FOLDER',
             help='either the folder ID or label')
 
-    share_folder_parser = folder_subparsers.add_parser('share', 
+    share_folder_parser = folder_subparsers.add_parser('share',
             help='Share a folder')
     share_folder_parser.add_argument('folder', metavar='FOLDER', help='the folder ID or label')
     share_folder_parser.add_argument('device', metavar='DEVICE', help='the device ID or label')
 
-    unshare_folder_parser = folder_subparsers.add_parser('unshare', 
+    unshare_folder_parser = folder_subparsers.add_parser('unshare',
             help='Stop sharing folder with device')
     unshare_folder_parser.add_argument('folder', metavar='FOLDER', help='the folder ID or label')
     unshare_folder_parser.add_argument('device', metavar='DEVICE', help='the device ID or name')
@@ -537,17 +544,17 @@ def arguments():
     edit_folder_parser.add_argument('--sync-permissions', action='store_true',
             help='turn on syncing file permissions.')
 
-    folder_versioning_parser = folder_subparsers.add_parser('versioning', 
+    folder_versioning_parser = folder_subparsers.add_parser('versioning',
             help="configure file versioning")
     folder_versioning_parser.add_argument('folder', metavar='FOLDER', help="the folder to modify")
-    folder_versioning_subparsers = folder_versioning_parser.add_subparsers(dest='versionparser_name', 
+    folder_versioning_subparsers = folder_versioning_parser.add_subparsers(dest='versionparser_name',
             metavar='TYPE')
     trashcan_parser = folder_versioning_subparsers.add_parser('trashcan', help="move deleted files to .stversions")
     trashcan_parser.add_argument('--cleanout', default='0', help="number of days to keep files in trash")
     simple_parser = folder_versioning_subparsers.add_parser('simple', help="keep old versions of files in .stversions")
     simple_parser.add_argument('--versions', default='5', help="the number of versions to keep")
     staggered_parser = folder_versioning_subparsers.add_parser('staggered', help="specify a maximum age for versions")
-    staggered_parser.add_argument('--maxage', metavar='MAXAGE', default='365', 
+    staggered_parser.add_argument('--maxage', metavar='MAXAGE', default='365',
             help="the maximum time to keep a version, in days, 0=forever")
     staggered_parser.add_argument('--path', metavar='PATH', default='', help="a custom path for storing versions")
     external_parser = folder_versioning_subparsers.add_parser('external', help="use a custom command for versioning")
@@ -561,7 +568,7 @@ def arguments():
 
 def configure(configfile, apikey, hostname, port, name, default):
     config = configparser.ConfigParser()
-    configfile = os.path.expanduser(configfile)
+    configfile = os.path.expandvars(configfile)
     if not name:
         name = hostname
     # Initialization of a config file
@@ -574,7 +581,7 @@ def configure(configfile, apikey, hostname, port, name, default):
         config['DEFAULT']['Name'] = name
     if not apikey:
         try:
-            stconfigfile = os.path.expanduser(__DEFAULT_ST_CONFIG_LOCATION__)
+            stconfigfile = os.path.expandvars(__DEFAULT_ST_CONFIG_LOCATION__)
             stconfig = ET.parse(stconfigfile)
             root = stconfig.getroot()
             gui = root.find('gui')
@@ -600,17 +607,17 @@ def configure(configfile, apikey, hostname, port, name, default):
 
 
 def getAPIInfo(configfile, name='DEFAULT'):
-    if not os.path.exists(os.path.expanduser(configfile)):
+    if not os.path.exists(os.path.expandvars(configfile)):
         raise SyncthingManagerError(configfile + " doesn't appear to be a valid path. Exiting.")
     config = configparser.ConfigParser()
-    config.read(os.path.expanduser(configfile))
+    config.read(os.path.expandvars(configfile))
     if name == 'DEFAULT':
         return config[config['DEFAULT']['Name']]
     try:
         return config[name]
     except KeyError:
         raise SyncthingManagerError("The Syncthing daemon specified"
-                + " is not configured.")
+                " is not configured.")
 
 
 def main():
@@ -620,11 +627,11 @@ def main():
             configure(args.config, args.apikey, args.hostname, args.port,
                     args.name, args.default)
             sys.exit(0)
-        if not getAPIInfo(args.config):
+        if not getAPIInfo(args.config, args.device):
             raise SyncthingManagerError("No Syncthing daemon is configured. Use "
-                + "stman configure apikey to initialize a configuration (apikey" +
+                "stman configure apikey to initialize a configuration (apikey"
                 " is in the syncthing settings and config.xml)")
-        APIInfo = getAPIInfo(args.config)
+        APIInfo = getAPIInfo(args.config, args.device)
         st = SyncthingManager(APIInfo['APIkey'], APIInfo['Hostname'], APIInfo['Port'])
         if args.subparser_name == 'device':
             if args.deviceparser_name == 'add':
