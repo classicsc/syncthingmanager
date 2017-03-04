@@ -69,19 +69,13 @@ do-test
     Folder Path:    /home/syncthing/stman-test/
 # Adding a device
 $ stman device add MFZWI3D-BONSGYC-YLTMRWG-C43ENR5-QXGZDMM-FZWI3DP-BONSGYY-LTMRWAD -n yet-another-device -i
- 
-$ stman device list
-syncthingmanager-test     This Device
-    ID:     LYAB7ZG-XDVMAVM-OUZ7EAB-5N3UVWY-DXTFRJ4-U2MTHGQ-7TIBRJE-PC56BQ6
-
-$ stman device add MFZWI3D-BONSGYC-YLTMRWG-C43ENR5-QXGZDMM-FZWI3DP-BONSGYY-LTMRWAD -n yet-another-device -i
 
 $ stman device list
 syncthingmanager-test     This Device
     ID:     LYAB7ZG-XDVMAVM-OUZ7EAB-5N3UVWY-DXTFRJ4-U2MTHGQ-7TIBRJE-PC56BQ6
 
-sam-thinker     Connected
-    At:     104.32.133.79:60249
+another-device     Connected
+    At:     #Address removed
     Folders:    dotest
     ID:     H2AJWNR-5VYNWKM-PS2L2EE-QJYBG2U-3IFN5XM-EKSIIKF-NVLAG2E-KIQE4AE
 
