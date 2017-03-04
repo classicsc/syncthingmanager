@@ -384,9 +384,23 @@ class SyncthingManager(Syncthing):
             active configuration."""
         config = self.system.config()
         connections = self.system.connections()['connections']
-        connected = filter(lambda x: connections[x['deviceID']]['connected'],
-                config['devices'])
-        not_connected = filter(lambda x: x not in connected, config['devices'])
+        status = self.system.status()
+        connected = []
+        not_connected = []
+        for device in config['devices']:
+            if device['deviceID'] == status['myID']:
+                this_device = device
+                continue
+            elif connections[device['deviceID']]['connected']:
+                connected.append(device)
+                continue
+            else:
+                not_connected.append(device)
+        outstr = """\
+                {0}     This Device
+                    ID:     {1}
+                """.format(this_device['name'], this_device['deviceID'])
+        print(dedent(outstr))
         for device in connected:
             address = connections[device['deviceID']]['address']
             folders = self.device_info(device['deviceID'])['folders']
@@ -395,7 +409,7 @@ class SyncthingManager(Syncthing):
                         At:     {3}
                         Folders:    {4}
                         ID:     {5}
-            """.format(device['name'], OKGREEN, ENDC, address,
+                    """.format(device['name'], OKGREEN, ENDC, address,
                     ', '.join(map(str, folders)), device['deviceID'])
             print(dedent(outstr))
 
@@ -405,16 +419,19 @@ class SyncthingManager(Syncthing):
                     {0}     {1}Not Connected{2}
                         Folders:    {3}
                         ID:     {4}
-            """.format(device['name'], FAIL, ENDC,
+                    """.format(device['name'], FAIL, ENDC,
                     ', '.join(map(str, folders)), device['deviceID'])
             print(dedent(outstr))
 
     def _folder_list(self):
         """Prints out a formatted list of folders from the configuration."""
         config = self.system.config()
+        status = self.system.status()
         for folder in config['folders']:
             devices = []
             for device in folder['devices']:
+                if device['deviceID'] == status['myID']:
+                    continue
                 name = self.device_info(device['deviceID'])['name']
                 devices.append(name)
             if folder['label'] == '':
