@@ -56,11 +56,15 @@ class SyncthingManager(Syncthing):
         Args:
             devicestr (str): the string that may be a deviceID or configured
                 device name.
+
         Returns:
             dict:
+
                 id: The deviceID in modern format, or None if not recogized.
+
                 index: the index of the device in config['devices'] in the
                     current configuration, or None if not configured.
+
                 folders: a list of folder IDs associated with the device."""
 
         try:
@@ -81,6 +85,7 @@ class SyncthingManager(Syncthing):
                         for d in folder['devices']:
                             if d['deviceID'] == device_id:
                                 folders.append(folder['id'])
+                    break
         else:
             for index, device in enumerate(config['devices']):
                 if device_id == device['deviceID']:
@@ -90,6 +95,7 @@ class SyncthingManager(Syncthing):
                         for d in folder['devices']:
                             if device['deviceID'] == d['deviceID']:
                                 folders.append(folder['id'])
+                    break
         return {'id': device_id, 'index': deviceindex, 'folders': folders,
                 'name': device_name}
 
@@ -98,14 +104,23 @@ class SyncthingManager(Syncthing):
         returns some useful info about it. Looks for a matching ID first,
         only considers labels if none is found. Further, duplicate labels
         are not reported. The first matching label in the config is used.
+
         Args:
+
             folderstr (str): the folder ID or label
+
         returns:
+
             dict:
+
                 id: (str) the folder ID
+
                 index: (str) the index of the folder in the active configuration
+
                 label: (str) the folder label
+
                 devices: (list) the deviceIDs associated with the folder
+
             None if no matching folder found """
         config = self.system.config()
         for index, folder in enumerate(config['folders']):
@@ -129,14 +144,21 @@ class SyncthingManager(Syncthing):
     def add_device(self, device_id, name='', address='', dynamic=False,
             introducer=False):
         """ Adds a device to the configuration and sets the configuration.
+
         Args:
+
             device_id (str): The device ID to be added.
+
             name (str): The name of the device. default: ``''``
+
             dynamic (bool): Add the ``dynamic`` entry to the addresses. No
                 effect if ``addresses`` is not specified. default: ``False``
+
             introducer (bool): Give the device the introducer flag.
                 default: ``False``
+
         Returns:
+
             None """
         config = self.system.config()
         info = self.device_info(device_id)
@@ -155,10 +177,15 @@ class SyncthingManager(Syncthing):
 
     def remove_device(self, devicestr):
         """Removes a device from the configuration and sets it.
+
         Args:
+
             devicestr (str): The device ID or name.
+
         Returns:
+
             None
+
         Raises: ``SyncthingManagerError``: when the given device is not
             configured. """
         config = self.system.config()
@@ -171,13 +198,20 @@ class SyncthingManager(Syncthing):
 
     def edit_device(self, devicestr, prop, value):
         """Changes properties of a device's configuration.
+
         Args:
+
             devicestr (str): The device ID or name.
+
             prop (str): the property as in the REST config documentaion
+
             value: the new value of the property. Needs to be in a
                 serializable format accepted by the API.
+
         Returns:
+
             None
+
         Raises: ``SyncthingManagerError``: when the given device is not configured."""
         config = self.system.config()
         info = self.device_info(devicestr)
@@ -189,15 +223,21 @@ class SyncthingManager(Syncthing):
 
     def device_change_name(self, devicestr, name):
         """Set or change the name of a configured device.
+
         Args:
+
             devicestr (str): the device ID or current name.
+
             name (str): the new device name."""
         self.edit_device(devicestr, 'name', name)
 
     def device_add_address(self, devicestr, address):
         """Add an address to the device's list of addresses.
+
         Args:
+
             devicestr(str): the device ID or name.
+
             address(str): a tcp://address to add.
         """
         info = self.device_info(devicestr)
@@ -224,19 +264,30 @@ class SyncthingManager(Syncthing):
     def add_folder(self, path, folderid, label='', foldertype='readwrite',
             rescan=60):
         """Adds a folder to the configuration and sets it.
+
         Args:
+
             path (str): a path to the folder to be configured, either absolute
                 or relative to the cwd.
+
             folderid (str): the string to identify the folder (must be same
                 on every device)
+
             label (str): the label used as an alternate, local name for the
                 folder.
+
             foldertype (str): see syncthing documentation...
+
             rescan (int): the interval for scanning in seconds.
+
         Returns:
+
             None
+
         Raises:
+
             ``SyncthingManagerError``: when the path is invalid
+
             ``SyncthingManagerError``: when a folder with identical label is
                 already configured. """
         config = self.system.config()
@@ -253,7 +304,7 @@ class SyncthingManager(Syncthing):
                 raise SyncthingManagerError("There was a problem with the path "
                         "entered: " + path)
             folder = dict({'id': folderid, 'label': label, 'path': str(path),
-                'type': foldertype, 'rescanIntervalS': rescan, 'fsync': True,
+                'type': foldertype, 'rescanIntervalS': int(rescan), 'fsync': True,
                 'autoNormalize': True, 'maxConflicts': 10, 'pullerSleepS': 0,
                 'minDiskFreePct': 1})
             config['folders'].append(folder)
@@ -261,10 +312,14 @@ class SyncthingManager(Syncthing):
 
     def remove_folder(self, folderstr):
         """Removes a folder from the configuration and sets it.
+
         Args:
+
             folderstr (str): an item from user input that may be the folder ID
                 or label.
+
         Returns:
+
             None"""
         info = self.folder_info(folderstr)
         if not info:
@@ -277,12 +332,17 @@ class SyncthingManager(Syncthing):
     def share_folder(self, folderstr, devicestr):
         """ Adds a device to a folder's list of devices and sets the
         configuration.
+
         Args:
+
             folderstr (str): an item from user input that may be the folder ID
                 or label.
+
             devicestr (str): an item from user input that may be the device ID
                 or name.
+
         Returns:
+
             None """
         info = self.folder_info(folderstr)
         if not info:
@@ -304,12 +364,17 @@ class SyncthingManager(Syncthing):
     def unshare_folder(self, folderstr, devicestr):
         """ Removes a device from a folder's list of devices and sets the
                 configuration.
+
         Args:
+
             folderstr (str): an item from user input that may be the folder ID
                 or label.
+
             devicestr (str): an item from user input that may be the device ID
                 or name.
+
         Returns:
+
             None """
         info = self.folder_info(folderstr)
         if not info:
@@ -540,7 +605,7 @@ def arguments():
     configuration_parser.add_argument('--hostname', '-a', default='localhost',
             help="the hostname to use. default localhost.")
     configuration_parser.add_argument('--port', '-p', default='8384',
-            help="the port to use. Default 8384")
+            help="the port to use. Default 8384", type=int)
     configuration_parser.add_argument('--name', '-n',
             help="what to call this device. Defaults to the hostname.")
     configuration_parser.add_argument('--default', action='store_true',
@@ -584,7 +649,7 @@ def arguments():
     edit_device_parser.add_argument('-r', '--remove-address', metavar='ADDRESS',
             help='remove ADDRESS from the list of hosts')
     edit_device_parser.add_argument('-c', '--compression', metavar='SETTING',
-            help='the level of compression to use (always, metadata, or never)')
+            help='the level of compression to use', choices=['always', 'metadata', 'never'])
     edit_device_parser.add_argument('-i', '--introducer', action='store_true',
             help='set the device as an introducer')
     edit_device_parser.add_argument('-io', '--introducer-off', action='store_true',
@@ -602,8 +667,8 @@ def arguments():
             help="the folder ID. Must match the one used on all cluster devices.")
     add_folder_parser.add_argument('--label', '-l', help="a local name for the folder")
     add_folder_parser.add_argument('--foldertype', '-t', default='readwrite',
-            help="'readwrite' or 'readonly'. Default readwrite")
-    add_folder_parser.add_argument('--rescan-interval', '-r', default=60,
+            help="'readwrite' or 'readonly'. Default readwrite", choices=['readwrite', 'readonly'])
+    add_folder_parser.add_argument('--rescan-interval', '-r', default=60, type=int,
             help='time in seconds between scanning for changes. Default 60.')
 
     remove_folder_parser = folder_subparsers.add_parser('remove',
@@ -627,13 +692,15 @@ def arguments():
     edit_folder_parser.add_argument('--label', '-n', metavar='LABEL',
             help='the label to be set')
     edit_folder_parser.add_argument('--rescan', '-r', metavar='INTERVAL',
-            help="the time (in seconds) between scanning for changes")
-    edit_folder_parser.add_argument('--minfree', '-m', metavar='PERCENT',
+            help="the time (in seconds) between scanning for changes", type=int)
+    edit_folder_parser.add_argument('--minfree', '-m', metavar='PERCENT', type=int,
             help='percentage of space that should be available on the disk this folder resides')
     edit_folder_parser.add_argument('--type', '-t', metavar='TYPE', dest='folder_type',
-            help='readonly or readwrite')
+            help='readonly or readwrite', choices=['readonly', 'readwrite'])
     edit_folder_parser.add_argument('--order', '-o', metavar='ORDER',
-            help='see the Syncthing documentation for all options')
+            help='see the Syncthing documentation for all options',
+            choices=['random', 'alphabetic', 'smallestFirst', 'largestFirst',
+                     'oldestFirst', 'newestFirst'])
     edit_folder_parser.add_argument('--ignore-permissions', action='store_true',
             help='ignore file permissions. Normally used on non-Unix filesystems')
     edit_folder_parser.add_argument('--sync-permissions', action='store_true',
@@ -645,12 +712,12 @@ def arguments():
     folder_versioning_subparsers = folder_versioning_parser.add_subparsers(dest='versionparser_name',
             metavar='TYPE')
     trashcan_parser = folder_versioning_subparsers.add_parser('trashcan', help="move deleted files to .stversions")
-    trashcan_parser.add_argument('--cleanout', default='0', help="number of days to keep files in trash")
+    trashcan_parser.add_argument('--cleanout', default='0', help="number of days to keep files in trash", type=int)
     simple_parser = folder_versioning_subparsers.add_parser('simple', help="keep old versions of files in .stversions")
-    simple_parser.add_argument('--versions', default='5', help="the number of versions to keep")
+    simple_parser.add_argument('--versions', default='5', help="the number of versions to keep", type=int)
     staggered_parser = folder_versioning_subparsers.add_parser('staggered', help="specify a maximum age for versions")
     staggered_parser.add_argument('--maxage', metavar='MAXAGE', default='365',
-            help="the maximum time to keep a version, in days, 0=forever")
+            help="the maximum time to keep a version, in days, 0=forever", type=int)
     staggered_parser.add_argument('--path', metavar='PATH', default='', help="a custom path for storing versions")
     external_parser = folder_versioning_subparsers.add_parser('external', help="use a custom command for versioning")
     external_parser.add_argument('command', metavar='COMMAND', help='the command to run')
