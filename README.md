@@ -8,8 +8,7 @@ A command line tool for the Syncthing API. Designed to make setting up remote se
 - setuptools and pip
 - Syncthing 0.14.19 or later
 
-Make sure you have setuptools installed, clone the repository, and run 
-`python3 setup.py install`
+`pip3 install syncthingmanager`
 
 The configuration must be initialized with the Syncthing API key.
 Usually this can be done automatically:
