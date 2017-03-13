@@ -50,38 +50,6 @@ class SyncthingManagerError(Exception):
 
 
 class SyncthingManager(Syncthing):
-    def pause(self, device):
-        """ Pause the given device.
-
-            Args:
-                device (str): Device ID.
-
-            Returns:
-                dict: with keys ``success`` and ``error``.
-        """
-        resp = self.system.post('pause', params={'device': device}, return_response=True)
-        error = resp.text
-        if not error:
-            error = None
-        return {'success': resp.status_code == requests.codes.ok,
-                'error': error}
-
-    def resume(self, device):
-        """ Resume the given device.
-
-            Args:
-                device (str): Device ID.
-
-            Returns:
-                dict: with keys ``success`` and ``error``.
-        """
-        resp = self.system.post('resume', params={'device': device}, return_response=True)
-        error = resp.text
-        if not error:
-            error = None
-        return {'success': resp.status_code == requests.codes.ok,
-                'error': error}
-
     def device_info(self, devicestr):
         """ A helper for finding a device ID from a user string that may be a
         deviceID a device name.
@@ -184,10 +152,9 @@ class SyncthingManager(Syncthing):
             Returns:
                 None """
         device_id = self.device_info(device)['id']
-        r = self.pause(device_id)
+        r = self.system.pause(device_id)
         if r['error']:
             raise SyncthingManagerError(r['error'])
-
 
     def daemon_resume(self, device):
         """ Resume one or all devices.
@@ -198,7 +165,7 @@ class SyncthingManager(Syncthing):
             Returns:
                 None """
         device_id = self.device_info(device)['id']
-        r = self.resume(device_id)
+        r = self.system.resume(device_id)
         if r['error']:
             raise SyncthingManagerError(r['error'])
 
