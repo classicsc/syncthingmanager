@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
         name='syncthingmanager',
-        version='0.1.0',
+        version='0.2.0dev1',
         description='A commandline tool for configuring Syncthing',
         url='https://github.com/classicsc/syncthingmanager',
         author='Samuel Smoker',

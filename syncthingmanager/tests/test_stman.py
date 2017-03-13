@@ -181,3 +181,14 @@ def test_folder_setup_versioning_none(s):
     s.folder_setup_versioning_none('stmantest1')
     b = next(folder1_info(s))
     assert b['versioning'] == {'params': {}, 'type': ''}
+
+def test_daemon_pause(s):
+    assert not s.system.connections()['connections']['MFZWI3D-BONSGYC-YLTMRWG-C43ENR5-QXGZDMM-FZWI3DP-BONSGYY-LTMRWAD']['paused']
+    s.daemon_pause('SyncthingManagerTestDevice1')
+    assert s.system.connections()['connections']['MFZWI3D-BONSGYC-YLTMRWG-C43ENR5-QXGZDMM-FZWI3DP-BONSGYY-LTMRWAD']['paused']
+
+def test_daemon_resume(s):
+    s.daemon_pause('SyncthingManagerTestDevice1')
+    assert s.system.connections()['connections']['MFZWI3D-BONSGYC-YLTMRWG-C43ENR5-QXGZDMM-FZWI3DP-BONSGYY-LTMRWAD']['paused']
+    s.daemon_resume('SyncthingManagerTestDevice1')
+    assert not s.system.connections()['connections']['MFZWI3D-BONSGYC-YLTMRWG-C43ENR5-QXGZDMM-FZWI3DP-BONSGYY-LTMRWAD']['paused']

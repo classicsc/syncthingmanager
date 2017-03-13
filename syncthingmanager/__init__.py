@@ -21,9 +21,10 @@ import configparser
 import pathlib
 import sys
 import os
-import xml.etree.ElementTree as ET
+from xml.etree.ElementTree import parse
 from textwrap import dedent
 import platform
+import requests
 
 # Put globals here
 __VERSION__ = '0.1.0'
@@ -49,6 +50,38 @@ class SyncthingManagerError(Exception):
 
 
 class SyncthingManager(Syncthing):
+    def pause(self, device):
+        """ Pause the given device.
+
+            Args:
+                device (str): Device ID.
+
+            Returns:
+                dict: with keys ``success`` and ``error``.
+        """
+        resp = self.system.post('pause', params={'device': device}, return_response=True)
+        error = resp.text
+        if not error:
+            error = None
+        return {'success': resp.status_code == requests.codes.ok,
+                'error': error}
+
+    def resume(self, device):
+        """ Resume the given device.
+
+            Args:
+                device (str): Device ID.
+
+            Returns:
+                dict: with keys ``success`` and ``error``.
+        """
+        resp = self.system.post('resume', params={'device': device}, return_response=True)
+        error = resp.text
+        if not error:
+            error = None
+        return {'success': resp.status_code == requests.codes.ok,
+                'error': error}
+
     def device_info(self, devicestr):
         """ A helper for finding a device ID from a user string that may be a
         deviceID a device name.
@@ -141,6 +174,34 @@ class SyncthingManager(Syncthing):
                 return info
         return None
 
+    def daemon_pause(self, device):
+        """ Pause one or all devices.
+
+            Args:
+
+                device (str): the device to be paused
+
+            Returns:
+                None """
+        device_id = self.device_info(device)['id']
+        r = self.pause(device_id)
+        if r['error']:
+            raise SyncthingManagerError(r['error'])
+
+
+    def daemon_resume(self, device):
+        """ Resume one or all devices.
+
+            Args:
+                device (str): the device to be resumed
+
+            Returns:
+                None """
+        device_id = self.device_info(device)['id']
+        r = self.resume(device_id)
+        if r['error']:
+            raise SyncthingManagerError(r['error'])
+
     def add_device(self, device_id, name='', address='', dynamic=False,
             introducer=False):
         """ Adds a device to the configuration and sets the configuration.
@@ -148,6 +209,8 @@ class SyncthingManager(Syncthing):
         Args:
 
             device_id (str): The device ID to be added.
+
+            address (str): An address to initialize the address list.
 
             name (str): The name of the device. default: ``''``
 
@@ -170,9 +233,9 @@ class SyncthingManager(Syncthing):
             addresses = [address]
             if dynamic:
                 addresses.append('dynamic')
-            config['devices'].append(dict({'deviceID': info['id'], 'name': name,
+            config['devices'].append({'deviceID': info['id'], 'name': name,
                 'addresses': addresses, 'compression': 'metadata',
-                'certName': '', 'introducer': introducer}))
+                'certName': '', 'introducer': introducer})
             self.system.set_config(config)
 
     def remove_device(self, devicestr):
@@ -300,13 +363,13 @@ class SyncthingManager(Syncthing):
         else:
             try:
                 path = pathlib.Path(path).resolve()
-            except pathlib.FileNotFoundError:
+            except FileNotFoundError:
                 raise SyncthingManagerError("There was a problem with the path "
                         "entered: " + path)
-            folder = dict({'id': folderid, 'label': label, 'path': str(path),
+            folder = {'id': folderid, 'label': label, 'path': str(path),
                 'type': foldertype, 'rescanIntervalS': int(rescan), 'fsync': True,
                 'autoNormalize': True, 'maxConflicts': 10, 'pullerSleepS': 0,
-                'minDiskFreePct': 1})
+                'minDiskFreePct': 1}
             config['folders'].append(folder)
             self.system.set_config(config)
 
@@ -611,6 +674,13 @@ def arguments():
     configuration_parser.add_argument('--default', action='store_true',
             help="make this device the default.")
 
+    daemon_parser = base_subparsers.add_parser('daemon', help="control synchronization activity by device or folder.")
+    daemon_parser.add_argument('-p', '--pause', help="pause syncing with a device")
+    daemon_parser.add_argument('-r', '--resume', help='resume syncing with a device')
+    # This stuff should be in 0.14.25, uncomment when it goes stable.
+#    daemon_parser.add_argument('--pause-all', action='store_true', help="pause syncing with all devices")
+#    daemon_parser.add_argument('--resume-all', action='store_true', help="resume syncing with all devices")
+
     device_parser = base_subparsers.add_parser('device',
             help="work with devices")
     device_subparsers = device_parser.add_subparsers(dest='deviceparser_name',
@@ -747,7 +817,7 @@ def configure(configfile, apikey, hostname, port, name, default):
     if not apikey:
         try:
             stconfigfile = os.path.expandvars(__DEFAULT_ST_CONFIG_LOCATION__)
-            stconfig = ET.parse(stconfigfile)
+            stconfig = parse(stconfigfile)
             root = stconfig.getroot()
             gui = root.find('gui')
             apikey = gui.find('apikey').text
@@ -819,6 +889,15 @@ def main():
                     st.device_add_address(args.device, args.add_address)
                 if args.remove_address:
                     st.device_remove_address(args.device, args.remove_address)
+        elif args.subparser_name == 'daemon':
+            if args.pause:
+                st.daemon_pause(args.pause)
+            if args.resume:
+                st.daemon_resume(args.resume)
+#            if args.pause_all:
+#                st.daemon_pause('')
+#            if args.resume_all:
+#                st.daemon_resume('')
         elif args.subparser_name == 'folder':
             if args.folderparser_name == 'add':
                 st.add_folder(args.path, args.folderID, args.label,
