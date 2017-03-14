@@ -3,7 +3,7 @@ A command line tool for the Syncthing API. Designed to make setting up remote se
 (and for users who prefer the cli)
 
 ## Installation and configuration
-###Requirements
+### Requirements
 - Python 3.4 or later
 - pip and wheel for Python 3
 - Syncthing 0.14.19 or later
