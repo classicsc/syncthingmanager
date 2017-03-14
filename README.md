@@ -5,8 +5,14 @@ A command line tool for the Syncthing API. Designed to make setting up remote se
 ## Installation and configuration
 ###Requirements
 - Python 3.4 or later
-- setuptools and pip
+- pip and wheel for Python 3
 - Syncthing 0.14.19 or later
+
+On Debian and derivatives, get the dependencies with
+
+`apt-get install syncthing python3-pip python3-wheel`
+
+Install stman with:
 
 `pip3 install syncthingmanager`
 
