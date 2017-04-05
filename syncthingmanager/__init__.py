@@ -24,7 +24,7 @@ import os
 from xml.etree.ElementTree import parse
 from textwrap import dedent
 import platform
-import requests
+from math import floor
 
 # Put globals here
 __VERSION__ = '0.1.0'
@@ -474,6 +474,16 @@ class SyncthingManager(Syncthing):
         versioning = {'params': {}, 'type': ''}
         self.folder_edit(folderstr, 'versioning', versioning)
 
+    def db_folder_sync_fraction(self, folderstr):
+        folder_id = self.folder_info(folderstr)['id']
+        status = self.db.status(folder_id)
+        try:
+            return status['inSyncBytes'] / status['globalBytes']
+        except ZeroDivisionError:
+            return 1
+        except TypeError:
+            return 1
+
     def _print_device_info(self, devicestr):
         config = self.system.config()
         info = self.device_info(devicestr)
@@ -545,6 +555,7 @@ class SyncthingManager(Syncthing):
         except TypeError:
             raise SyncthingManagerError("Folder not configured: " + folderstr)
         status = self.system.status()
+        sync_status = floor(100 * self.db_folder_sync_fraction(info['id']))
         devices = []
         for device in folder['devices']:
             if device['deviceID'] == status['myID']:
@@ -581,12 +592,12 @@ class SyncthingManager(Syncthing):
                 nondefaults += ('\n    Command:            ' +
                         folder['versioning']['params']['command'])
         outstr = """\
-                {0}
+                {0}     {4}%
                     Shared With:  {1}
                     Folder ID:  {2}
                     Folder Path:    {3}\
                 """.format(folderstr, ', '.join(map(str, devices)),
-                        folder['id'], folder['path'])
+                        folder['id'], folder['path'], str(sync_status))
         print(dedent(outstr))
         print(nondefaults)
 
@@ -597,6 +608,7 @@ class SyncthingManager(Syncthing):
         status = self.system.status()
         for folder in config['folders']:
             devices = []
+            sync_status = floor(100 * self.db_folder_sync_fraction(folder['id']))
             for device in folder['devices']:
                 if device['deviceID'] == status['myID']:
                     continue
@@ -607,12 +619,12 @@ class SyncthingManager(Syncthing):
             else:
                 folderstr = folder['label']
             outstr = """\
-                    {0}
+                    {0}     {4}%
                         Shared With:  {1}
                         Folder ID:  {2}
                         Folder Path:    {3}
                     """.format(folderstr, ', '.join(map(str, devices)),
-                            folder['id'], folder['path'])
+                            folder['id'], folder['path'], str(sync_status))
             print(dedent(outstr))
 
 
@@ -644,9 +656,8 @@ def arguments():
     daemon_parser = base_subparsers.add_parser('daemon', help="control synchronization activity by device or folder.")
     daemon_parser.add_argument('-p', '--pause', help="pause syncing with a device")
     daemon_parser.add_argument('-r', '--resume', help='resume syncing with a device')
-    # This stuff should be in 0.14.25, uncomment when it goes stable.
-#    daemon_parser.add_argument('--pause-all', action='store_true', help="pause syncing with all devices")
-#    daemon_parser.add_argument('--resume-all', action='store_true', help="resume syncing with all devices")
+    daemon_parser.add_argument('--pause-all', action='store_true', help="pause syncing with all devices")
+    daemon_parser.add_argument('--resume-all', action='store_true', help="resume syncing with all devices")
 
     device_parser = base_subparsers.add_parser('device',
             help="work with devices")
@@ -861,10 +872,10 @@ def main():
                 st.daemon_pause(args.pause)
             if args.resume:
                 st.daemon_resume(args.resume)
-#            if args.pause_all:
-#                st.daemon_pause('')
-#            if args.resume_all:
-#                st.daemon_resume('')
+            if args.pause_all:
+                st.daemon_pause('')
+            if args.resume_all:
+                st.daemon_resume('')
         elif args.subparser_name == 'folder':
             if args.folderparser_name == 'add':
                 st.add_folder(args.path, args.folderID, args.label,

@@ -192,3 +192,7 @@ def test_daemon_resume(s):
     assert s.system.connections()['connections']['MFZWI3D-BONSGYC-YLTMRWG-C43ENR5-QXGZDMM-FZWI3DP-BONSGYY-LTMRWAD']['paused']
     s.daemon_resume('SyncthingManagerTestDevice1')
     assert not s.system.connections()['connections']['MFZWI3D-BONSGYC-YLTMRWG-C43ENR5-QXGZDMM-FZWI3DP-BONSGYY-LTMRWAD']['paused']
+
+def test_db_sync_fraction(s):
+    a = s.db_folder_sync_fraction('stmantest1')
+    assert isinstance(a, float) or isinstance(a, int)
