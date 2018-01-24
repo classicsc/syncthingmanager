@@ -20,7 +20,7 @@ setup(
         ],
         keywords='syncthing',
         packages=['syncthingmanager'],
-        install_requires=['syncthing>=2.0.2'],
+        install_requires=['syncthing==2.1.2'],
         extras_require={
             'test': ['pytest']
         },
