@@ -530,14 +530,14 @@ class SyncthingManager(Syncthing):
                 not_connected.append(device)
         if json_out:
             out_dict = {}
-            out_dict[this_device['deviceID']] = this_device
-            out_dict.update(connections)
+            out_dict['local_device'] = this_device
+            out_dict['remote_devices'] = connections
             for device in connected:
-                out_dict[device['deviceID']]['folders'] = \
+                out_dict['remote_devices'][device['deviceID']]['folders'] = \
                         self.device_info(device['deviceID'])['folders']
 
             for device in not_connected:
-                out_dict[device['deviceID']]['folders'] = \
+                out_dict['remote_devices'][device['deviceID']]['folders'] = \
                         self.device_info(device['deviceID'])['folders']
             
             sys.stdout.write(json.dumps(out_dict, indent=True))
