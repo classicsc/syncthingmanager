@@ -21,6 +21,7 @@ import configparser
 import pathlib
 import sys
 import os
+import json
 from xml.etree.ElementTree import parse
 from textwrap import dedent
 import platform
@@ -484,7 +485,7 @@ class SyncthingManager(Syncthing):
         except TypeError:
             return 1
 
-    def _print_device_info(self, devicestr):
+    def _print_device_info(self, devicestr, json_out=False):
         config = self.system.config()
         info = self.device_info(devicestr)
         try:
@@ -492,18 +493,25 @@ class SyncthingManager(Syncthing):
         except TypeError:
             raise SyncthingManagerError("Device not configured: " + devicestr)
         folders = self.device_info(device['deviceID'])['folders']
-        outstr = """\
-                {0}
-                    Addresses:     {1}
-                    Folders:    {2}
-                    ID:     {3}
-                    Introducer?     {4}
-                """.format(device['name'], ', '.join(device['addresses']),
-                ', '.join(map(str, folders)), device['deviceID'],
-                device['introducer'])
-        print(dedent(outstr))
+        if json_out:
+            out_dict = {}
+            out_dict[device['deviceID']] = device
+            out_dict[device['deviceID']]['folders'] = folders
+            sys.stdout.write(json.dumps(out_dict, indent=True))
 
-    def _device_list(self):
+        else:
+            outstr = """\
+                    {0}
+                        Addresses:     {1}
+                        Folders:    {2}
+                        ID:     {3}
+                        Introducer?     {4}
+                    """.format(device['name'], ', '.join(device['addresses']),
+                    ', '.join(map(str, folders)), device['deviceID'],
+                    device['introducer'])
+            print(dedent(outstr))
+
+    def _device_list(self, json_out=False):
         """Prints out a formatted list of devices and their state from the
             active configuration."""
         config = self.system.config()
@@ -520,34 +528,48 @@ class SyncthingManager(Syncthing):
                 continue
             else:
                 not_connected.append(device)
-        outstr = """\
-                {0}     This Device
-                    ID:     {1}
-                """.format(this_device['name'], this_device['deviceID'])
-        print(dedent(outstr))
-        for device in connected:
-            address = connections[device['deviceID']]['address']
-            folders = self.device_info(device['deviceID'])['folders']
-            outstr = """\
-                    {0}     {1}Connected{2}
-                        At:     {3}
-                        Folders:    {4}
-                        ID:     {5}
-                    """.format(device['name'], OKGREEN, ENDC, address,
-                    ', '.join(map(str, folders)), device['deviceID'])
-            print(dedent(outstr))
+        if json_out:
+            out_dict = {}
+            out_dict[this_device['deviceID']] = this_device
+            out_dict.update(connections)
+            for device in connected:
+                out_dict[device['deviceID']]['folders'] = \
+                        self.device_info(device['deviceID'])['folders']
 
-        for device in not_connected:
-            folders = self.device_info(device['deviceID'])['folders']
+            for device in not_connected:
+                out_dict[device['deviceID']]['folders'] = \
+                        self.device_info(device['deviceID'])['folders']
+            
+            sys.stdout.write(json.dumps(out_dict, indent=True))
+        else:
             outstr = """\
-                    {0}     {1}Not Connected{2}
-                        Folders:    {3}
-                        ID:     {4}
-                    """.format(device['name'], FAIL, ENDC,
-                    ', '.join(map(str, folders)), device['deviceID'])
+                    {0}     This Device
+                        ID:     {1}
+                    """.format(this_device['name'], this_device['deviceID'])
             print(dedent(outstr))
+            for device in connected:
+                address = connections[device['deviceID']]['address']
+                folders = self.device_info(device['deviceID'])['folders']
+                outstr = """\
+                        {0}     {1}Connected{2}
+                            At:     {3}
+                            Folders:    {4}
+                            ID:     {5}
+                        """.format(device['name'], OKGREEN, ENDC, address,
+                        ', '.join(map(str, folders)), device['deviceID'])
+                print(dedent(outstr))
 
-    def _print_folder_info(self, folderstr):
+            for device in not_connected:
+                folders = self.device_info(device['deviceID'])['folders']
+                outstr = """\
+                        {0}     {1}Not Connected{2}
+                            Folders:    {3}
+                            ID:     {4}
+                        """.format(device['name'], FAIL, ENDC,
+                        ', '.join(map(str, folders)), device['deviceID'])
+                print(dedent(outstr))
+
+    def _print_folder_info(self, folderstr, json_out=True):
         info = self.folder_info(folderstr)
         config = self.system.config()
         try:
@@ -562,70 +584,83 @@ class SyncthingManager(Syncthing):
                 continue
             name = self.device_info(device['deviceID'])['name']
             devices.append(name)
-        if folder['label'] == '':
-            folderstr = folder['id']
+        if json_out:
+            sys.stdout.write(json.dumps({folder['id']: folder}, indent=True))
         else:
-            folderstr = folder['label']
-        nondefaults = ""
-        if folder['rescanIntervalS'] != 60:
-            nondefaults += ('    Rescan Interval:    ' +
-                    str(folder['rescanIntervalS']))
-        if folder['type'] != 'readwrite':
-            nondefaults += ('\n    Folder Type:      ' +
-                    folder['type'])
-        if folder['order'] != 'random':
-            nondefaults += ('\n    File Pull Order:  ' +
-                    folder['order'])
-        if folder['versioning']['type'] != '':
-            nondefaults += ('\n    Versioning:       ' +
-                    folder['versioning']['type'])
-            if folder['versioning']['type'] == 'trashcan':
-                nondefaults += ('\n    Clean out after:    ' +
-                        folder['versioning']['params']['cleanoutDays'])
-            if folder['versioning']['type'] == 'simple':
-                nondefaults += ('\n    Keep Versions:      ' +
-                        folder['versioning']['params']['keep'])
-            if folder['versioning']['type'] == 'staggered':
-                nondefaults += ('\n    Versions Path:      ' +
-                        folder['versioning']['params']['versionsPath'])
-            if folder['versioning']['type'] == 'external':
-                nondefaults += ('\n    Command:            ' +
-                        folder['versioning']['params']['command'])
-        outstr = """\
-                {0}     {4}%
-                    Shared With:  {1}
-                    Folder ID:  {2}
-                    Folder Path:    {3}\
-                """.format(folderstr, ', '.join(map(str, devices)),
-                        folder['id'], folder['path'], str(sync_status))
-        print(dedent(outstr))
-        print(nondefaults)
+            if folder['label'] == '':
+                folderstr = folder['id']
+            else:
+                folderstr = folder['label']
+            nondefaults = ""
+            if folder['rescanIntervalS'] != 60:
+                nondefaults += ('    Rescan Interval:    ' +
+                        str(folder['rescanIntervalS']))
+            if folder['type'] != 'readwrite':
+                nondefaults += ('\n    Folder Type:      ' +
+                        folder['type'])
+            if folder['order'] != 'random':
+                nondefaults += ('\n    File Pull Order:  ' +
+                        folder['order'])
+            if folder['versioning']['type'] != '':
+                nondefaults += ('\n    Versioning:       ' +
+                        folder['versioning']['type'])
+                if folder['versioning']['type'] == 'trashcan':
+                    nondefaults += ('\n    Clean out after:    ' +
+                            folder['versioning']['params']['cleanoutDays'])
+                if folder['versioning']['type'] == 'simple':
+                    nondefaults += ('\n    Keep Versions:      ' +
+                            folder['versioning']['params']['keep'])
+                if folder['versioning']['type'] == 'staggered':
+                    nondefaults += ('\n    Versions Path:      ' +
+                            folder['versioning']['params']['versionsPath'])
+                if folder['versioning']['type'] == 'external':
+                    nondefaults += ('\n    Command:            ' +
+                            folder['versioning']['params']['command'])
+            outstr = """\
+                    {0}     {4}%
+                        Shared With:  {1}
+                        Folder ID:  {2}
+                        Folder Path:    {3}\
+                    """.format(folderstr, ', '.join(map(str, devices)),
+                            folder['id'], folder['path'], str(sync_status))
+            print(dedent(outstr))
+            print(nondefaults)
 
 
-    def _folder_list(self):
+    def _folder_list(self, json_out=False):
         """Prints out a formatted list of folders from the configuration."""
         config = self.system.config()
         status = self.system.status()
+        if json_out:
+            out_dict = {}
         for folder in config['folders']:
-            devices = []
             sync_status = floor(100 * self.db_folder_sync_fraction(folder['id']))
+            devices = []
             for device in folder['devices']:
                 if device['deviceID'] == status['myID']:
                     continue
                 name = self.device_info(device['deviceID'])['name']
                 devices.append(name)
-            if folder['label'] == '':
-                folderstr = folder['id']
+            if json_out:
+                out_dict[folder['id']] = folder
+                out_dict[folder['id']]['sync_status'] = sync_status
+                out_dict[folder['id']]['devices'] = devices
             else:
-                folderstr = folder['label']
-            outstr = """\
-                    {0}     {4}%
-                        Shared With:  {1}
-                        Folder ID:  {2}
-                        Folder Path:    {3}
-                    """.format(folderstr, ', '.join(map(str, devices)),
-                            folder['id'], folder['path'], str(sync_status))
-            print(dedent(outstr))
+                if folder['label'] == '':
+                    folderstr = folder['id']
+                else:
+                    folderstr = folder['label']
+                outstr = """\
+                        {0}     {4}%
+                            Shared With:  {1}
+                            Folder ID:  {2}
+                            Folder Path:    {3}
+                        """.format(folderstr, ', '.join(map(str, devices)),
+                                folder['id'], folder['path'], str(sync_status))
+                print(dedent(outstr))
+        if json_out:
+            sys.stdout.write(json.dumps(out_dict, indent=True))
+ 
 
 
 def arguments():
@@ -680,9 +715,14 @@ def arguments():
             help="shows detailed device information")
     device_info_parser.add_argument('device', metavar='DEVICE',
             help="the device name or ID")
+    device_info_parser.add_argument('-j', '--json_out', action='store_true',
+            help="output to json")
 
     list_device_parser = device_subparsers.add_parser('list',
             help="shows a list of devices and some information")
+    list_device_parser.add_argument('-j', '--json_out', action='store_true',
+            help="output to json")
+            
 
     remove_device_parser = device_subparsers.add_parser('remove',
             help="remove a device")
@@ -773,8 +813,13 @@ def arguments():
 
     folder_info_parser = folder_subparsers.add_parser('info', help='show detailed information about a folder')
     folder_info_parser.add_argument('folder', metavar='FOLDER', help='the folder name or label')
+    folder_info_parser.add_argument('-j', '--json_out', action='store_true',
+            help="output to json")
 
     list_folder_parser = folder_subparsers.add_parser('list', help='show a list of configured folders')
+    list_folder_parser.add_argument('-j', '--json_out', action='store_true',
+            help="output to json")
+ 
 
     return parser.parse_args()
 
@@ -853,9 +898,15 @@ def main():
             elif args.deviceparser_name == 'remove':
                 st.remove_device(args.device)
             elif args.deviceparser_name == 'info':
-                st._print_device_info(args.device)
+                if args.json_out:
+                    st._print_device_info(args.device, json_out=True)
+                else:
+                    st._print_device_info(args.device)
             elif args.deviceparser_name == 'list':
-                st._device_list()
+                if args.json_out:
+                    st._device_list(json_out=True)
+                else:
+                    st._device_list()
             elif args.deviceparser_name == 'edit':
                 if args.name:
                     st.device_change_name(args.device, args.name)
@@ -913,9 +964,15 @@ def main():
                 elif args.versionparser_name == 'none':
                     st.folder_setup_versioning_none(args.folder)
             elif args.folderparser_name == 'info':
-                st._print_folder_info(args.folder)
+                if args.json_out:
+                    st._print_folder_info(args.folder, json_out=True)
+                else:
+                    st._print_folder_info(args.folder)
             elif args.folderparser_name == 'list':
-                st._folder_list()
+                if args.json_out:
+                    st._folder_list(json_out=True)
+                else:
+                    st._folder_list()
     except SyncthingError as err:
         print(err)
         sys.exit(1)

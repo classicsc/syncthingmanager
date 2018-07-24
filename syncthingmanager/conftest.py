@@ -1,5 +1,16 @@
 import syncthingmanager as stman
 import pytest
+import os
+
+
+# classicsc
+test_deviceID = 'MFZWI3D-BONSGYC-YLTMRWG-C43ENR5-QXGZDMM-FZWI3DP-BONSGYY-LTMRWAD'
+
+# oneyb
+if os.getenv('USER') == 'oney':
+    test_deviceID = \
+        'MH3SMD5-Q66HTXW-YXD77D4-JT3UJPF-APV5KPQ-REZBQWI-QQYNSSV-RGGRSQW'
+
 
 @pytest.fixture(scope='session')
 def temp_folder(tmpdir_factory):
@@ -11,7 +22,7 @@ def s(request, temp_folder):
     s = stman.SyncthingManager(APIInfo['APIkey'], APIInfo['Hostname'], APIInfo['Port'])
     cfg = s.system.config()
     cfga = s.system.config()
-    test_device = {'deviceID': 'MFZWI3D-BONSGYC-YLTMRWG-C43ENR5-QXGZDMM-FZWI3DP-BONSGYY-LTMRWAD',
+    test_device = {'deviceID': test_deviceID,
             'name': 'SyncthingManagerTestDevice1', 'addresses': ['localhost']}
     test_folder = {'id': 'stmantest1', 'label': 'SyncthingManagerTestFolder1',
             'path': str(temp_folder), 'type': 'readwrite', 'rescanIntervalS': 60,
