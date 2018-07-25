@@ -569,7 +569,7 @@ class SyncthingManager(Syncthing):
                         ', '.join(map(str, folders)), device['deviceID'])
                 print(dedent(outstr))
 
-    def _print_folder_info(self, folderstr, json_out=True):
+    def _print_folder_info(self, folderstr, json_out=False):
         info = self.folder_info(folderstr)
         config = self.system.config()
         try:
